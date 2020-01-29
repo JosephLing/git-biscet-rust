@@ -26,18 +26,21 @@ struct JsonProblemDefinition {
 }
 
 #[derive(Serialize, Deserialize)]
+#[allow(non_snake_case)]
 struct JsonMessageProblem {
-    problem: JsonProblemDefinition,
+    Problem: JsonProblemDefinition,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[allow(non_snake_case)]
 struct JsonScore {
-    score: String, // {pb0: 2} or null or {pb0: null}
+    Score: String, // {pb0: 2} or null or {pb0: null}
 }
 
 #[derive(Serialize, Deserialize, Debug)]
+#[allow(non_snake_case)]
 struct JsonAnswer {
-    answer: String,
+    Answer: String,
 }
 
 // note: look into a better way potentailly to do the header...
@@ -122,7 +125,7 @@ mod parsing {
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"c","dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        assert_eq!(problem.problem.name, "pb0");
+        assert_eq!(problem.Problem.name, "pb0");
         Ok(())
     }
 
@@ -131,7 +134,7 @@ mod parsing {
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"c","dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        assert_eq!(problem.problem.dag.len(), 3);
+        assert_eq!(problem.Problem.dag.len(), 3);
         Ok(())
     }
 
@@ -140,7 +143,7 @@ mod parsing {
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"c","dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        assert_eq!(problem.problem.dag[0].commit, "a");
+        assert_eq!(problem.Problem.dag[0].commit, "a");
         Ok(())
     }
 }
@@ -155,7 +158,7 @@ mod algorithm {
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"c","dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        assert_eq!(parse_json(problem.problem).len(), 1);
+        assert_eq!(parse_json(problem.Problem).len(), 1);
         Ok(())
     }
 
@@ -165,7 +168,7 @@ mod algorithm {
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"c","dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        assert_eq!(parse_json(problem.problem)[0], "b");
+        assert_eq!(parse_json(problem.Problem)[0], "b");
         Ok(())
     }
 
@@ -175,7 +178,7 @@ mod algorithm {
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"g","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["e",["d"]],["f",["e"]],["g",["f"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        let solution = parse_json(problem.problem);
+        let solution = parse_json(problem.Problem);
         assert_eq!(solution, ["f", "e", "d", "c", "b"]);
         Ok(())
     }
@@ -187,7 +190,7 @@ mod algorithm {
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"d","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["f",[]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        let solution = parse_json(problem.problem);
+        let solution = parse_json(problem.Problem);
         assert_eq!(solution, ["c", "b"]);
         Ok(())
     }
@@ -198,7 +201,7 @@ mod algorithm {
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"d","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["g",["d"]],["f",[]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        let solution = parse_json(problem.problem);
+        let solution = parse_json(problem.Problem);
         assert_eq!(solution, ["c", "b"]);
         Ok(())
     }
@@ -209,7 +212,7 @@ mod algorithm {
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"d","dag":[["a",[]],["b",["a", "bb"]],["bb",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["g",["d"]],["f",[]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        let solution = parse_json(problem.problem);
+        let solution = parse_json(problem.Problem);
         assert_eq!(solution, ["c", "b", "bb"]);
         Ok(())
     }
