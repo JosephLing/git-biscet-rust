@@ -182,43 +182,11 @@ mod parsing {
 #[cfg(test)]
 mod algorithm {
     use super::*;
-
-    mod check_up_the_tree_tests {
-        use super::*;
-        #[test]
-        fn test_end_commit() {
-            let mut commits: HashMap<String, Vec<String>> = HashMap::new();
-            commits.insert("a".to_string(), Vec::new());
-            commits.insert("b".to_string(), vec!["a".to_string()]);
-            commits.insert("c".to_string(), vec!["b".to_string()]);
-            commits.insert("d".to_string(), vec!["c".to_string(), "e".to_string()]);
-            commits.insert("e".to_string(), vec!["f".to_string()]);
-            commits.insert("f".to_string(), Vec::new());
-            assert_eq!(
-                check_up_the_tree(&"a".to_string(), &"f".to_string(), &commits, HashSet::new()),
-                false
-            )
-        }
-
-        #[test]
-        fn test_other() {
-            let mut commits: HashMap<String, Vec<String>> = HashMap::new();
-            commits.insert("a".to_string(), Vec::new());
-            commits.insert("b".to_string(), vec!["a".to_string()]);
-            commits.insert("c".to_string(), vec!["b".to_string()]);
-            commits.insert("d".to_string(), vec!["c".to_string(), "e".to_string()]);
-            commits.insert("e".to_string(), vec!["f".to_string()]);
-            commits.insert("f".to_string(), Vec::new());
-            assert_eq!(
-                check_up_the_tree(&"a".to_string(), &"e".to_string(), &commits, HashSet::new()),
-                false
-            )
-        }
-    }
+ 
 
     #[test]
     fn test_linear_tree() -> Result<(), serde_json::Error> {
-        // a (good) <-- b <-- c (bad)
+        // a (good) --> b --> c (bad)
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"c","dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
@@ -228,7 +196,7 @@ mod algorithm {
 
     #[test]
     fn test_linear_tree_value() -> Result<(), serde_json::Error> {
-        // a (good) <-- b <-- c (bad)
+        // a (good) --> b --> c (bad)
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"c","dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
@@ -238,7 +206,7 @@ mod algorithm {
 
     #[test]
     fn test_linear_large() -> Result<(), serde_json::Error> {
-        // a (good) <-- b <-- c (bad)
+        // a (good) --> b --> c (bad)
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"g","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["e",["d"]],["f",["e"]],["g",["f"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
@@ -250,11 +218,11 @@ mod algorithm {
 
     #[test]
     fn test_branching() -> Result<(), serde_json::Error> {
-        // a (good) <-- b <-- c
+        // a (good) --> b --> c
         //                     \
         //                      d (bad)
         //                      /
-        //               f <-- e
+        //               f --> e
         // d has two parents and we only want to get the ones that have a good commit
         // as their parent
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"d","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["f",[]]]}}"#;
@@ -262,13 +230,13 @@ mod algorithm {
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
         let mut solution = parse_json(problem.Problem);
         solution.sort();
-        assert_eq!(solution, ["b", "c"]);
+        assert_eq!(solution, ["b", "c", "e", "f"]);
         Ok(())
     }
 
     #[test]
     fn test_commits_before_bad_commit() -> Result<(), serde_json::Error> {
-        // a (good) <-- b <-- c < -- d (bad) < -- g
+        // a (good) --> b --> c  --> d (bad) --> g
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"d","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["g",["d"]],["f",[]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
@@ -280,7 +248,7 @@ mod algorithm {
 
     #[test]
     fn test_commits_after_good_commit() -> Result<(), serde_json::Error> {
-        // a <-- b (good) <-- c < -- d (bad) < -- g
+        // a --> b (good) --> c --> d (bad) --> g
         let data = r#"{"Problem":{"name":"pb0","good":"b","bad":"d","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["g",["d"]],["f",[]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
@@ -292,10 +260,10 @@ mod algorithm {
 
     #[test]
     fn test_branching_good() -> Result<(), serde_json::Error> {
-        // a <-- b <-- c < -- d
-        // ^     |
-        // |     v
-        // \--- bb
+        // a >-- b --> c --> d
+        // v     |
+        // |     ^
+        // \---> bb
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"d","dag":[["a",[]],["b",["a"]],["bb",["b"]],["c",["b","bb"]],["d",["c"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
