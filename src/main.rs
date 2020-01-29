@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
+use std::collections::HashSet;
+
 use ws::Result as ResultWS;
 use ws::{connect, CloseCode, Handler, Handshake, Message, Sender};
 
@@ -59,25 +61,51 @@ fn send_solution(out: Sender, msg: String) -> Result<(), String> {
     _send_data(out, "Solution", msg)
 }
 
+#[allow(dead_code)]
+fn check_up_the_tree(
+    good: &String,
+    search: &String,
+    start: &String,
+    commits: &HashMap<String, Vec<String>>,
+    known_good: HashSet<String>,
+) -> bool {
+    if let Some(commit) = commits.get(search) {
+        for parent in commit {
+            // hash set might not be the best idea
+            return good == parent
+                || known_good.contains(search)
+                || check_up_the_tree(good, search, &parent, commits, known_good);
+        }
+    }
+    return false;
+}
+
+#[allow(dead_code)]
 fn foo(
     good: &String,
     bad: String,
     commits: &HashMap<String, Vec<String>>,
     mut found: bool,
-) -> (Vec<String>, bool) {
-    let mut stack: Vec<String> = Vec::new();
+) -> (HashSet<String>, bool) {
+    let mut local_found = false;
+    let mut stack: HashSet<String> = HashSet::new();
     if let Some(parents) = commits.get(&bad) {
         for parent in parents {
+            local_found = false;
             if !found && good == parent {
+                println!("found at {} {}", parent, bad);
                 found = true;
+                local_found = true;
             }
-            if !found {
-                stack.push(parent.to_owned());
-            }
-            let (list, good_found) = foo(good, parent.to_owned(), commits, found);
-            if good_found {
-                stack.extend(list.iter().cloned());
-                found = good_found;
+
+            if good != parent {
+                if stack.insert(parent.to_owned()) {
+                    let (list, good_found) = foo(good, parent.to_owned(), commits, found);
+                    if good_found {
+                        stack.extend(list.iter().cloned());
+                        found = good_found;
+                    }
+                }
             }
         }
     }
@@ -93,9 +121,12 @@ fn parse_json(prob: JsonProblemDefinition) -> Vec<String> {
     }
 
     let (list, _) = foo(&prob.good, prob.bad, &commits, false);
-
+    let mut values = Vec::new();
+    for v in list {
+        values.push(v);
+    }
     // remove commits
-    return list;
+    return values;
 }
 
 fn solve(prob: JsonProblemDefinition) {
@@ -152,6 +183,39 @@ mod parsing {
 mod algorithm {
     use super::*;
 
+    mod check_up_the_tree_tests {
+        use super::*;
+        #[test]
+        fn test_end_commit() {
+            let mut commits: HashMap<String, Vec<String>> = HashMap::new();
+            commits.insert("a".to_string(), Vec::new());
+            commits.insert("b".to_string(), vec!["a".to_string()]);
+            commits.insert("c".to_string(), vec!["b".to_string()]);
+            commits.insert("d".to_string(), vec!["c".to_string(), "e".to_string()]);
+            commits.insert("e".to_string(), vec!["f".to_string()]);
+            commits.insert("f".to_string(), Vec::new());
+            assert_eq!(
+                check_up_the_tree(&"a".to_string(), &"f".to_string(), &commits, HashSet::new()),
+                false
+            )
+        }
+
+        #[test]
+        fn test_other() {
+            let mut commits: HashMap<String, Vec<String>> = HashMap::new();
+            commits.insert("a".to_string(), Vec::new());
+            commits.insert("b".to_string(), vec!["a".to_string()]);
+            commits.insert("c".to_string(), vec!["b".to_string()]);
+            commits.insert("d".to_string(), vec!["c".to_string(), "e".to_string()]);
+            commits.insert("e".to_string(), vec!["f".to_string()]);
+            commits.insert("f".to_string(), Vec::new());
+            assert_eq!(
+                check_up_the_tree(&"a".to_string(), &"e".to_string(), &commits, HashSet::new()),
+                false
+            )
+        }
+    }
+
     #[test]
     fn test_linear_tree() -> Result<(), serde_json::Error> {
         // a (good) <-- b <-- c (bad)
@@ -178,42 +242,66 @@ mod algorithm {
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"g","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["e",["d"]],["f",["e"]],["g",["f"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        let solution = parse_json(problem.Problem);
-        assert_eq!(solution, ["f", "e", "d", "c", "b"]);
+        let mut solution = parse_json(problem.Problem);
+        solution.sort();
+        assert_eq!(solution, ["b", "c", "d", "e", "f"]);
         Ok(())
     }
 
     #[test]
     fn test_branching() -> Result<(), serde_json::Error> {
+        // a (good) <-- b <-- c
+        //                     \
+        //                      d (bad)
+        //                      /
+        //               f <-- e
         // d has two parents and we only want to get the ones that have a good commit
         // as their parent
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"d","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["f",[]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        let solution = parse_json(problem.Problem);
-        assert_eq!(solution, ["c", "b"]);
+        let mut solution = parse_json(problem.Problem);
+        solution.sort();
+        assert_eq!(solution, ["b", "c"]);
         Ok(())
     }
 
     #[test]
-    fn test_branching_complex() -> Result<(), serde_json::Error> {
-        // d has a child but we don't want to count that one
-        let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"d","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["g",["d"]],["f",[]]]}}"#;
+    fn test_commits_before_bad_commit() -> Result<(), serde_json::Error> {
+        // a (good) <-- b <-- c < -- d (bad) < -- g
+        let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"d","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["g",["d"]],["f",[]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        let solution = parse_json(problem.Problem);
-        assert_eq!(solution, ["c", "b"]);
+        let mut solution = parse_json(problem.Problem);
+        solution.sort();
+        assert_eq!(solution, ["b", "c"]);
         Ok(())
     }
 
     #[test]
-    fn test_branching_complex_many_parents() -> Result<(), serde_json::Error> {
-        // d has a child but we don't want to count that one
-        let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"d","dag":[["a",[]],["b",["a", "bb"]],["bb",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["g",["d"]],["f",[]]]}}"#;
+    fn test_commits_after_good_commit() -> Result<(), serde_json::Error> {
+        // a <-- b (good) <-- c < -- d (bad) < -- g
+        let data = r#"{"Problem":{"name":"pb0","good":"b","bad":"d","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["g",["d"]],["f",[]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        let solution = parse_json(problem.Problem);
-        assert_eq!(solution, ["c", "b", "bb"]);
+        let mut solution = parse_json(problem.Problem);
+        solution.sort();
+        assert_eq!(solution, ["c"]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_branching_good() -> Result<(), serde_json::Error> {
+        // a <-- b <-- c < -- d
+        // ^     |
+        // |     v
+        // \--- bb
+        let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"d","dag":[["a",[]],["b",["a"]],["bb",["b"]],["c",["b","bb"]],["d",["c"]]]}}"#;
+
+        let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
+        let mut solution = parse_json(problem.Problem);
+        solution.sort();
+        assert_eq!(solution, ["b", "bb", "c"]);
         Ok(())
     }
 }
