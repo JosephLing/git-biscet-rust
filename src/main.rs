@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::HashSet;  
 
 use ws::Result as ResultWS;
 use ws::{connect, CloseCode, Handler, Handshake, Message, Sender};
@@ -62,45 +62,30 @@ fn send_solution(out: Sender, msg: String) -> Result<(), String> {
 }
 
 #[allow(dead_code)]
-fn check_up_the_tree(
-    good: &String,
-    search: &String,
-    start: &String,
-    commits: &HashMap<String, Vec<String>>,
-    known_good: HashSet<String>,
-) -> bool {
-    if let Some(commit) = commits.get(search) {
-        for parent in commit {
-            // hash set might not be the best idea
-            return good == parent
-                || known_good.contains(search)
-                || check_up_the_tree(good, search, &parent, commits, known_good);
-        }
-    }
-    return false;
-}
-
-#[allow(dead_code)]
-fn foo(
+fn remove_unecessary_commits(
     good: &String,
     bad: String,
     commits: &HashMap<String, Vec<String>>,
     mut found: bool,
-) -> (HashSet<String>, bool) {
+) -> (HashSet<String>, bool, usize) {
     let mut local_found = false;
+    let mut anscenstors = 0;
     let mut stack: HashSet<String> = HashSet::new();
     if let Some(parents) = commits.get(&bad) {
+        anscenstors = parents.len();
         for parent in parents {
+
             local_found = false;
             if !found && good == parent {
-                println!("found at {} {}", parent, bad);
                 found = true;
                 local_found = true;
             }
 
             if good != parent {
                 if stack.insert(parent.to_owned()) {
-                    let (list, good_found) = foo(good, parent.to_owned(), commits, found);
+                    let (list, good_found, ans) =
+                        remove_unecessary_commits(good, parent.to_owned(), commits, found);
+                    println!("{} {}", parent, ans);
                     if good_found {
                         stack.extend(list.iter().cloned());
                         found = good_found;
@@ -110,7 +95,7 @@ fn foo(
         }
     }
 
-    return (stack.clone(), found);
+    return (stack.clone(), found, anscenstors);
 }
 
 fn parse_json(prob: JsonProblemDefinition) -> Vec<String> {
@@ -120,7 +105,7 @@ fn parse_json(prob: JsonProblemDefinition) -> Vec<String> {
         commits.insert(commit.commit, commit.parents);
     }
 
-    let (list, _) = foo(&prob.good, prob.bad, &commits, false);
+    let (list, _, _) = remove_unecessary_commits(&prob.good, prob.bad, &commits, false);
     let mut values = Vec::new();
     for v in list {
         values.push(v);
@@ -136,7 +121,7 @@ fn solve(prob: JsonProblemDefinition) {
         commits.insert(commit.commit, commit.parents);
     }
 
-    foo(&prob.good, prob.bad, &commits, false);
+    remove_unecessary_commits(&prob.good, prob.bad, &commits, false);
 }
 
 #[cfg(test)]
@@ -182,7 +167,6 @@ mod parsing {
 #[cfg(test)]
 mod algorithm {
     use super::*;
- 
 
     #[test]
     fn test_linear_tree() -> Result<(), serde_json::Error> {
@@ -286,10 +270,11 @@ struct Client {
 // }
 
 // We implement the Handler trait for Client so that we can get more
-// fine-grained control of the connection.
+// fine-grained control of th   e connection.
 impl Handler for Client {
     fn on_open(&mut self, _: Handshake) -> ResultWS<()> {
-        self.out.send("Hello WebSocket")
+        println!("oepning");
+        self.out.send(r#"{"User":"jl653"}"#)
     }
 
     // `on_message` is roughly equivalent to the Handler closure. It takes a `Message`
@@ -304,6 +289,7 @@ impl Handler for Client {
          *
          */
         if let Ok(text) = msg.as_text() {
+            println!("{}", text);
             if let Ok(data) = serde_json::from_str::<Value>(&text) {
                 // https://docs.serde.rs/serde_json/fn.from_value.html
                 if data["Problem"] != Value::Null {
@@ -337,16 +323,18 @@ impl Handler for Client {
         match code {
             CloseCode::Normal => println!("The client is done with the connection."),
             CloseCode::Away => println!("The client is leaving the site."),
-            _ => println!("The client encountered an error: {}", reason),
+            _ => println!("The client encountered an error: {:?} {}",code, reason),
         }
     }
 }
 
 fn main() {
+    println!("running");
     // Now, instead of a closure, the Factory returns a new instance of our Handler.
-    connect("ws://127.0.0.1:3012", |out| Client {
+    connect("ws://129.12.44.229:1234", |out| Client {
         out: out,
         state: STATE::START,
     })
-    .unwrap()
+    .unwrap();
+    println!("cats");
 }
