@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
-use std::collections::HashSet;  
+use std::collections::HashSet;
 use std::collections::VecDeque;
 
 use ws::Result as ResultWS;
@@ -65,43 +65,48 @@ fn send_solution(out: Sender, msg: String) -> Result<(), String> {
 #[allow(dead_code)]
 fn remove_unecessary_good_commits(
     good: &String,
-    commits: &mut HashMap<String, Vec<String>>,
+    parents: &mut HashMap<String, Vec<String>>,
+    children: &mut HashMap<String, Vec<String>>,
 ) {
     let mut queue: VecDeque<String> = VecDeque::new();
-    let temp: &Vec<String>  = commits.get(good).unwrap();
+    let temp: &Vec<String> = parents.get(good).unwrap();
     for i in 0..temp.len() {
         queue.push_back(temp.get(i).unwrap().to_owned());
     }
 
-    while !queue.is_empty(){
+    while !queue.is_empty() {
         let commit = queue.pop_front().unwrap();
-        if let Some(cats) = commits.get(&commit){
-            let temp: &Vec<String>  = cats;
+        if let Some(cats) = parents.get(&commit) {
+            let temp: &Vec<String> = cats;
             for i in 0..temp.len() {
                 queue.push_back(temp.get(i).unwrap().to_owned());
             }
-            commits.remove_entry(&commit);
+            parents.remove_entry(&commit);
+            children.remove_entry(&commit);
         }
-
     }
-
-    commits.remove_entry(good);
 }
-
-
-
-
 
 fn parse_json(prob: JsonProblemDefinition) -> Vec<String> {
     let mut commits = HashMap::new();
+    let mut children = HashMap::new();
 
     for commit in prob.dag {
         commits.insert(commit.commit, commit.parents);
     }
 
-    remove_unecessary_good_commits(&prob.good, &mut commits);
+    remove_unecessary_good_commits(&prob.good, &mut commits, &mut children);
     let mut values: Vec<String> = Vec::new();
     for v in commits.keys() {
+        values.push(v.into());
+    }
+    println!("{:?}", values);
+    
+    
+    create_children(&prob.bad, &commits, &mut children);
+
+    let mut values: Vec<String> = Vec::new();
+    for v in children.keys() {
         values.push(v.into());
     }
     println!("{:?}", values);
@@ -109,14 +114,72 @@ fn parse_json(prob: JsonProblemDefinition) -> Vec<String> {
     return values;
 }
 
-fn solve(prob: JsonProblemDefinition) {
-    let mut commits = HashMap::new();
 
-    for commit in prob.dag {
-        commits.insert(commit.commit, commit.parents);
+fn create_children(
+    bad: &String,
+    parents: &HashMap<String, Vec<String>>,
+    children: &mut HashMap<String, Vec<String>>,
+) {
+    let mut queue: VecDeque<String> = VecDeque::new();
+    let temp: &Vec<String> = parents.get(bad).unwrap();
+    children.insert(bad.to_owned(), vec![]);
+    for i in 0..temp.len() {
+        queue.push_back(temp.get(i).unwrap().to_owned());
+        if parents.contains_key(temp.get(i).unwrap()){
+            let mut new_children: Vec<String> = Vec::new();
+            if let Some(child) = children.get(bad) {
+                new_children.clone_from(child);
+            }
+            new_children.push(bad.to_owned());
+            children.insert(temp.get(i).unwrap().to_owned(), new_children);
+        }
     }
 
-    remove_unecessary_good_commits(&prob.good, &mut commits);
+    while !queue.is_empty() {
+        let commit = &queue.pop_front().unwrap();
+        if let Some(cats) = parents.get(commit) {
+            let temp: &Vec<String> = cats;
+            for i in 0..temp.len() {
+                queue.push_front(temp.get(i).unwrap().to_owned());
+
+                if parents.contains_key(temp.get(i).unwrap()) {
+                    let mut new_children: Vec<String> = Vec::new();
+                    if let Some(child) = children.get(commit) {
+                        new_children.clone_from(child);
+                    }
+                    new_children.push(commit.to_owned());
+                    children.insert(temp.get(i).unwrap().to_owned(), new_children);
+    
+                }
+
+            }
+        }
+    }
+
+}
+
+fn get_next_guess(bad: &String, commits: &HashMap<String, Vec<String>>) -> String {
+    // go from the good commit incrementing by one each time
+    // we could store this and then reuse it maybe
+    // [(c, p)] and [(c,child)] ---- in doing this remove everything after bad
+    //  commit or that doesn't reach the bad commit
+    //
+    // children.get(good) and then do addition
+    // while do removing we do parents.get(good)
+
+    return "cats".to_string();
+}
+
+fn solve(prob: JsonProblemDefinition) {
+    let mut parents = HashMap::new();
+    let mut children: HashMap<String, Vec<String>> = HashMap::new();
+    for commit in prob.dag {
+        parents.insert(commit.commit, commit.parents);
+    }
+
+    remove_unecessary_good_commits(&prob.good, &mut parents, &mut children);
+    create_children(&prob.bad, &parents, &mut children);
+
 }
 
 #[cfg(test)]
@@ -170,7 +233,7 @@ mod algorithm {
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
         let temp = parse_json(problem.Problem);
-        assert_eq!(temp.len(), 2);
+        assert_eq!(temp.len(), 3);
         Ok(())
     }
 
@@ -180,7 +243,9 @@ mod algorithm {
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"c","dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        assert_eq!(parse_json(problem.Problem), ["c", "b"]);
+        let mut solution = parse_json(problem.Problem);
+        solution.sort();
+        assert_eq!(solution, ["a", "b", "c"]);
         Ok(())
     }
 
@@ -192,7 +257,7 @@ mod algorithm {
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
         let mut solution = parse_json(problem.Problem);
         solution.sort();
-        assert_eq!(solution, ["b", "c", "d", "e", "f", "g"]);
+        assert_eq!(solution, ["a", "b", "c", "d", "e", "f", "g"]);
         Ok(())
     }
 
@@ -210,7 +275,7 @@ mod algorithm {
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
         let mut solution = parse_json(problem.Problem);
         solution.sort();
-        assert_eq!(solution, ["b", "c","d", "e", "f"]);
+        assert_eq!(solution, ["a", "b", "c", "d", "e", "f"]);
         Ok(())
     }
 
@@ -222,24 +287,20 @@ mod algorithm {
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
         let mut solution = parse_json(problem.Problem);
         solution.sort();
-        // currently just ignores 'g'
-        // and doesn't remove 'f' which is a dead commit
 
-        assert_eq!(solution, ["b", "c", "d", "f", "g"]);
+        assert_eq!(solution, ["a", "b", "c", "d"]);
         Ok(())
     }
 
     #[test]
     fn test_commits_after_good_commit() -> Result<(), serde_json::Error> {
-        // a --> b (good) --> c --> d (bad) --> g
+        // a <-- b (good) <-- c <-- d (bad) <-- g
         let data = r#"{"Problem":{"name":"pb0","good":"b","bad":"d","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["g",["d"]],["f",[]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
         let mut solution = parse_json(problem.Problem);
         solution.sort();
-        // currently doesn't remove 'g' as it just ignores it
-        // and doesn't remove 'f' which is a dead commit
-        assert_eq!(solution, ["c", "d","f", "g"]);
+        assert_eq!(solution, ["b", "c", "d"]);
         Ok(())
     }
 
@@ -254,7 +315,7 @@ mod algorithm {
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
         let mut solution = parse_json(problem.Problem);
         solution.sort();
-        assert_eq!(solution, ["b", "bb", "c", "d"]);
+        assert_eq!(solution, ["a", "b", "bb", "c", "d"]);
         Ok(())
     }
 }
@@ -324,7 +385,7 @@ impl Handler for Client {
         match code {
             CloseCode::Normal => println!("The client is done with the connection."),
             CloseCode::Away => println!("The client is leaving the site."),
-            _ => println!("The client encountered an error: {:?} {}",code, reason),
+            _ => println!("The client encountered an error: {:?} {}", code, reason),
         }
     }
 }
