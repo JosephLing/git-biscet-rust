@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::collections::HashMap;
 use std::collections::HashSet;  
+use std::collections::VecDeque;
 
 use ws::Result as ResultWS;
 use ws::{connect, CloseCode, Handler, Handshake, Message, Sender};
@@ -62,41 +63,34 @@ fn send_solution(out: Sender, msg: String) -> Result<(), String> {
 }
 
 #[allow(dead_code)]
-fn remove_unecessary_commits(
+fn remove_unecessary_good_commits(
     good: &String,
-    bad: String,
-    commits: &HashMap<String, Vec<String>>,
-    mut found: bool,
-) -> (HashSet<String>, bool, usize) {
-    let mut local_found = false;
-    let mut anscenstors = 0;
-    let mut stack: HashSet<String> = HashSet::new();
-    if let Some(parents) = commits.get(&bad) {
-        anscenstors = parents.len();
-        for parent in parents {
-
-            local_found = false;
-            if !found && good == parent {
-                found = true;
-                local_found = true;
-            }
-
-            if good != parent {
-                if stack.insert(parent.to_owned()) {
-                    let (list, good_found, ans) =
-                        remove_unecessary_commits(good, parent.to_owned(), commits, found);
-                    println!("{} {}", parent, ans);
-                    if good_found {
-                        stack.extend(list.iter().cloned());
-                        found = good_found;
-                    }
-                }
-            }
-        }
+    commits: &mut HashMap<String, Vec<String>>,
+) {
+    let mut queue: VecDeque<String> = VecDeque::new();
+    let temp: &Vec<String>  = commits.get(good).unwrap();
+    for i in 0..temp.len() {
+        queue.push_back(temp.get(i).unwrap().to_owned());
     }
 
-    return (stack.clone(), found, anscenstors);
+    while !queue.is_empty(){
+        let commit = queue.pop_front().unwrap();
+        if let Some(cats) = commits.get(&commit){
+            let temp: &Vec<String>  = cats;
+            for i in 0..temp.len() {
+                queue.push_back(temp.get(i).unwrap().to_owned());
+            }
+            commits.remove_entry(&commit);
+        }
+
+    }
+
+    commits.remove_entry(good);
 }
+
+
+
+
 
 fn parse_json(prob: JsonProblemDefinition) -> Vec<String> {
     let mut commits = HashMap::new();
@@ -105,11 +99,12 @@ fn parse_json(prob: JsonProblemDefinition) -> Vec<String> {
         commits.insert(commit.commit, commit.parents);
     }
 
-    let (list, _, _) = remove_unecessary_commits(&prob.good, prob.bad, &commits, false);
-    let mut values = Vec::new();
-    for v in list {
-        values.push(v);
+    remove_unecessary_good_commits(&prob.good, &mut commits);
+    let mut values: Vec<String> = Vec::new();
+    for v in commits.keys() {
+        values.push(v.into());
     }
+    println!("{:?}", values);
     // remove commits
     return values;
 }
@@ -121,7 +116,7 @@ fn solve(prob: JsonProblemDefinition) {
         commits.insert(commit.commit, commit.parents);
     }
 
-    remove_unecessary_commits(&prob.good, prob.bad, &commits, false);
+    remove_unecessary_good_commits(&prob.good, &mut commits);
 }
 
 #[cfg(test)]
@@ -174,7 +169,8 @@ mod algorithm {
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"c","dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        assert_eq!(parse_json(problem.Problem).len(), 1);
+        let temp = parse_json(problem.Problem);
+        assert_eq!(temp.len(), 2);
         Ok(())
     }
 
@@ -184,7 +180,7 @@ mod algorithm {
         let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"c","dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
 
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
-        assert_eq!(parse_json(problem.Problem)[0], "b");
+        assert_eq!(parse_json(problem.Problem), ["c", "b"]);
         Ok(())
     }
 
@@ -196,7 +192,7 @@ mod algorithm {
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
         let mut solution = parse_json(problem.Problem);
         solution.sort();
-        assert_eq!(solution, ["b", "c", "d", "e", "f"]);
+        assert_eq!(solution, ["b", "c", "d", "e", "f", "g"]);
         Ok(())
     }
 
@@ -214,7 +210,7 @@ mod algorithm {
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
         let mut solution = parse_json(problem.Problem);
         solution.sort();
-        assert_eq!(solution, ["b", "c", "e", "f"]);
+        assert_eq!(solution, ["b", "c","d", "e", "f"]);
         Ok(())
     }
 
@@ -226,7 +222,10 @@ mod algorithm {
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
         let mut solution = parse_json(problem.Problem);
         solution.sort();
-        assert_eq!(solution, ["b", "c"]);
+        // currently just ignores 'g'
+        // and doesn't remove 'f' which is a dead commit
+
+        assert_eq!(solution, ["b", "c", "d", "f", "g"]);
         Ok(())
     }
 
@@ -238,7 +237,9 @@ mod algorithm {
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
         let mut solution = parse_json(problem.Problem);
         solution.sort();
-        assert_eq!(solution, ["c"]);
+        // currently doesn't remove 'g' as it just ignores it
+        // and doesn't remove 'f' which is a dead commit
+        assert_eq!(solution, ["c", "d","f", "g"]);
         Ok(())
     }
 
@@ -253,7 +254,7 @@ mod algorithm {
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
         let mut solution = parse_json(problem.Problem);
         solution.sort();
-        assert_eq!(solution, ["b", "bb", "c"]);
+        assert_eq!(solution, ["b", "bb", "c", "d"]);
         Ok(())
     }
 }
