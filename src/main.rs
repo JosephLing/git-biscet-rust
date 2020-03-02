@@ -1,8 +1,10 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
+
 use std::collections::HashMap;
-use std::collections::HashSet;
 use std::collections::VecDeque;
+
+use rand::distributions::{IndependentSample, Range};
 
 use ws::Result as ResultWS;
 use ws::{connect, CloseCode, Handler, Handshake, Message, Sender};
@@ -10,6 +12,8 @@ use ws::{connect, CloseCode, Handler, Handshake, Message, Sender};
 enum STATE {
     START,
     InProgress,
+    GiveUp,
+    FINISHED,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -49,16 +53,16 @@ struct JsonAnswer {
 // note: look into a better way potentailly to do the header...
 // could use a macro or something
 // (https://hermanradtke.com/2015/05/03/string-vs-str-in-rust-functions.html)
-fn _send_data(out: Sender, header: &str, msg: String) -> Result<(), String> {
+fn _send_data(out: &Sender, header: &str, msg: String) -> () {
+    println!(">>> {} : {}", header, msg);
     out.send(serde_json::json!({ header: msg }).to_string());
-    Ok(())
 }
 
-fn send_question(out: Sender, msg: String) -> Result<(), String> {
+fn send_question(out: &Sender, msg: String) {
     _send_data(out, "Question", msg)
 }
 
-fn send_solution(out: Sender, msg: String) -> Result<(), String> {
+fn send_solution(out: &Sender, msg: String) {
     _send_data(out, "Solution", msg)
 }
 
@@ -101,8 +105,6 @@ fn parse_json(prob: JsonProblemDefinition) -> Vec<String> {
         values.push(v.into());
     }
     println!("{:?}", values);
-    
-    
     create_children(&prob.bad, &commits, &mut children);
 
     let mut values: Vec<String> = Vec::new();
@@ -114,7 +116,6 @@ fn parse_json(prob: JsonProblemDefinition) -> Vec<String> {
     return values;
 }
 
-
 fn create_children(
     bad: &String,
     parents: &HashMap<String, Vec<String>>,
@@ -125,7 +126,7 @@ fn create_children(
     children.insert(bad.to_owned(), vec![]);
     for i in 0..temp.len() {
         queue.push_back(temp.get(i).unwrap().to_owned());
-        if parents.contains_key(temp.get(i).unwrap()){
+        if parents.contains_key(temp.get(i).unwrap()) {
             let mut new_children: Vec<String> = Vec::new();
             if let Some(child) = children.get(bad) {
                 new_children.clone_from(child);
@@ -149,25 +150,26 @@ fn create_children(
                     }
                     new_children.push(commit.to_owned());
                     children.insert(temp.get(i).unwrap().to_owned(), new_children);
-    
                 }
-
             }
         }
     }
-
 }
 
-fn get_next_guess(bad: &String, commits: &HashMap<String, Vec<String>>) -> String {
-    // go from the good commit incrementing by one each time
-    // we could store this and then reuse it maybe
-    // [(c, p)] and [(c,child)] ---- in doing this remove everything after bad
-    //  commit or that doesn't reach the bad commit
-    //
-    // children.get(good) and then do addition
-    // while do removing we do parents.get(good)
-
-    return "cats".to_string();
+fn get_next_guess(
+    bad: &String,
+    parents: &HashMap<String, Vec<String>>,
+    children: &HashMap<String, Vec<String>>,
+) -> String {
+    let chance = Range::new(0, parents.len() - 1).ind_sample(&mut rand::thread_rng());
+    let mut count = 0;
+    for k in parents.keys() {
+        if count >= chance {
+            return k.to_owned();
+        }
+        count += 1;
+    }
+    return "".to_owned();
 }
 
 fn solve(prob: JsonProblemDefinition) {
@@ -179,7 +181,6 @@ fn solve(prob: JsonProblemDefinition) {
 
     remove_unecessary_good_commits(&prob.good, &mut parents, &mut children);
     create_children(&prob.bad, &parents, &mut children);
-
 }
 
 #[cfg(test)]
@@ -326,54 +327,110 @@ mod algorithm {
 struct Client {
     out: Sender,
     state: STATE,
+    good: String,
+    bad: String,
+    questions: i32,
+    question_commit: String,
+    parents: HashMap<String, Vec<String>>,
+    children: HashMap<String, Vec<String>>,
 }
-// impl From<serde_json::Error> for io::Error{
-// fn from(e: serde_json::Error) -> Self {ws::Error{kind: ws::ErrorKind::Internal, details: "cats"}}
-// }
 
-// We implement the Handler trait for Client so that we can get more
-// fine-grained control of th   e connection.
 impl Handler for Client {
     fn on_open(&mut self, _: Handshake) -> ResultWS<()> {
         println!("oepning");
         self.out.send(r#"{"User":"jl653"}"#)
     }
 
-    // `on_message` is roughly equivalent to the Handler closure. It takes a `Message`
-    // and returns a `Result<()>`.
     fn on_message(&mut self, msg: Message) -> ResultWS<()> {
-        /*!
-         * TODO:
-         * state logic
-         * types or representation for problem
-         * errors and closing down when necessary
-         * testing printing the score
-         *
-         */
         if let Ok(text) = msg.as_text() {
-            println!("{}", text);
             if let Ok(data) = serde_json::from_str::<Value>(&text) {
-                // https://docs.serde.rs/serde_json/fn.from_value.html
+                
                 if data["Problem"] != Value::Null {
-                    let problem: JsonMessageProblem = serde_json::from_value(data).unwrap();
-                } else if data["Answer"] != Value::Null {
-                    println!("answers: {}", data["Answer"])
-                } else if data["Score"] != Value::Null {
-                    // just print here
-                    println!("score: {}", data["Score"])
-                } else {
-                    // problem
+                    println!("be given another problem");
+                    self.state = STATE::START;
                 }
-            }
+                if data["Score"] != Value::Null {
+                    println!("score: {:?}", data);
+                    self.state = STATE::FINISHED;
+                }
+                self.state = match &self.state {
+                    STATE::START => {
+                        self.parents = HashMap::new();
+                        self.children = HashMap::new();
+                        self.questions = 0;
+                        self.question_commit = "".to_owned();
+                        
+                        println!("starting");
+                        let prob: JsonProblemDefinition =
+                            serde_json::from_value::<JsonMessageProblem>(data)
+                                .unwrap()
+                                .Problem;
+                        for commit in prob.dag {
+                            self.parents.insert(commit.commit, commit.parents);
+                        }
+                        println!("problem size: {:?}", self.parents.len());
 
-            match self.state {
-                STATE::START => 1,
-                STATE::InProgress => 2,
-            };
-            // Close the connection when we get a response from the server
-            println!("Got message: {}", msg);
+                        remove_unecessary_good_commits(
+                            &prob.good,
+                            &mut self.parents,
+                            &mut self.children,
+                        );
+                        create_children(&prob.bad, &self.parents, &mut self.children);
+                        self.bad = prob.bad;
+                        self.good = prob.good;
+
+                        println!("problem reduced to:{:?}", self.parents.len());
+                        self.question_commit = get_next_guess(&self.bad, &self.parents, &self.children);
+                        send_question(&self.out, self.question_commit.to_string());
+                        STATE::InProgress
+                    }
+                    STATE::InProgress => {
+                        if self.parents.len() <= 3 {
+                            self.parents.remove(&self.bad);
+                            self.parents.remove(&self.good);
+                            send_solution(
+                                &self.out,
+                                self.parents.keys().last().unwrap().to_string(),
+                            );
+                        } else {
+                            println!("in progress");
+                            if data["Answer"] != Value::Null {
+                                let answer: String =
+                                    serde_json::from_value::<JsonAnswer>(data).unwrap().Answer;
+                                if answer.eq("bad") {
+                                    println!("found bad");
+                                    create_children(&self.question_commit, &self.parents, &mut self.children);
+                                } else {
+                                    println!("found good");
+                                    remove_unecessary_good_commits(
+                                        &self.question_commit,
+                                        &mut self.parents,
+                                        &mut self.children,
+                                    );
+                                }
+                                println!("problem size: {:?}", self.parents.len());
+                            }
+                            self.questions += 1;
+                            self.question_commit = get_next_guess(&self.bad, &self.parents, &self.children);
+                            send_question(&self.out, self.question_commit.to_string());
+                            println!("problem size: {:?}", self.parents.len());
+                        }
+
+                        match self.questions {
+                            29 => STATE::GiveUp,
+                            _ => STATE::InProgress,
+                        }
+                    }
+                    STATE::GiveUp => {
+                        println!("GIVING UP - moving onto the next question");
+                        self.out.send(serde_json::json!("GiveUp").to_string());
+                        STATE::START
+                    }
+                    STATE::FINISHED => STATE::FINISHED,
+                };
+            }
         }
-        self.out.close(CloseCode::Normal)
+        Ok(())
     }
 
     fn on_close(&mut self, code: CloseCode, reason: &str) {
@@ -396,6 +453,12 @@ fn main() {
     connect("ws://129.12.44.229:1234", |out| Client {
         out: out,
         state: STATE::START,
+        questions: 0,
+        bad: "".to_string(),
+        question_commit: "".to_string(),
+        good: "".to_string(),
+        parents: HashMap::new(),
+        children: HashMap::new(),
     })
     .unwrap();
     println!("cats");
