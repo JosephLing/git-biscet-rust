@@ -375,22 +375,25 @@ impl Handler for Client {
                             &mut self.parents,
                             &mut self.children,
                         );
-                        create_children(&prob.bad, &self.parents, &mut self.children);
+                        println!("good removal: {:?}", self.parents.len());
+                       // create_children(&prob.bad, &self.parents, &mut self.children);
                         self.bad = prob.bad;
                         self.good = prob.good;
 
                         println!("problem reduced to:{:?}", self.parents.len());
-                        self.question_commit = get_next_guess(&self.bad, &self.parents, &self.children);
-                        send_question(&self.out, self.question_commit.to_string());
+                        if self.parents.len() == 1{
+                            send_solution(&self.out, self.bad.clone());
+                        }else{
+                            self.question_commit = get_next_guess(&self.bad, &self.parents, &self.children);
+                            send_question(&self.out, self.question_commit.to_string());
+                        }
                         STATE::InProgress
                     }
                     STATE::InProgress => {
-                        if self.parents.len() <= 3 {
-                            self.parents.remove(&self.bad);
-                            self.parents.remove(&self.good);
+                        if self.parents.len() == 1 {
                             send_solution(
                                 &self.out,
-                                self.parents.keys().last().unwrap().to_string(),
+                                self.bad.clone(),
                             );
                         } else {
                             println!("in progress");
@@ -399,21 +402,28 @@ impl Handler for Client {
                                     serde_json::from_value::<JsonAnswer>(data).unwrap().Answer;
                                 if answer.eq("bad") {
                                     println!("found bad");
-                                    create_children(&self.question_commit, &self.parents, &mut self.children);
+                                    self.bad = self.question_commit.clone();
+                         //           create_children(&self.question_commit, &self.parents, &mut self.children);
                                 } else {
                                     println!("found good");
+                                    self.good = self.question_commit.clone();
                                     remove_unecessary_good_commits(
                                         &self.question_commit,
                                         &mut self.parents,
-                                        &mut self.children,
+                                        &mut self.children
                                     );
                                 }
                                 println!("problem size: {:?}", self.parents.len());
                             }
-                            self.questions += 1;
-                            self.question_commit = get_next_guess(&self.bad, &self.parents, &self.children);
-                            send_question(&self.out, self.question_commit.to_string());
-                            println!("problem size: {:?}", self.parents.len());
+                            if self.parents.len() == 1{
+                                    send_solution(&self.out, self.bad.clone());
+                                
+                            }else{
+                                self.questions += 1;
+                                self.question_commit = get_next_guess(&self.bad, &self.parents, &self.children);
+                                send_question(&self.out, self.question_commit.to_string());
+                                println!("problem size: {:?}", self.parents.len());
+                            }
                         }
 
                         match self.questions {
