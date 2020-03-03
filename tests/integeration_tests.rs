@@ -5,8 +5,8 @@ use std::thread;
 extern crate gitbisectrust;
 use std::collections::HashSet;
 
-use gitbisectrust::run;
 pub use crate::server::create_test_server;
+use gitbisectrust::run;
 
 #[cfg(test)]
 mod integeration {
@@ -20,12 +20,13 @@ mod integeration {
         //               f --> e
         // d has two parents and we only want to get the ones that have a good commit
         // as their parent
-        let data = r#"{"Problem":{"name":"pb0","good":"a","bad":"d","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["f",[]]]}}"#;
-        let mut bad : HashSet<String> = HashSet::new();
+        let data = r#"{"Repo":{"name":"pb0","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["f",[]]]}}"#;
+        let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
+        let mut bad: HashSet<String> = HashSet::new();
         bad.insert("e".to_string());
         bad.insert("f".to_string());
         let server = thread::spawn(move || {
-            server::create_test_server(bad, data.to_string(), "f".to_string(), false);
+            server::create_test_server(bad, data.to_string(), instance.to_string(), "f".to_string(), false);
         });
         println!("cats");
         let client = thread::spawn(move || {

@@ -16,6 +16,7 @@ struct Server {
     expire_timeout: Option<Timeout>,
     bad: HashSet<String>,
     problem: String,
+    instance: String,
     answer: String,
     allow_give_up: bool
 }
@@ -39,6 +40,7 @@ impl Handler for Server {
 
                 }else if data["User"] != Value::Null {
                     self.out.send(self.problem.clone());
+                    self.out.send(self.instance.clone());
 
                 }else if data["Question"] != Value::Null {
                     println!("got a question");
@@ -137,7 +139,7 @@ struct DefaultHandler;
 
 impl Handler for DefaultHandler {}
 
-pub fn create_test_server (bad: HashSet<String>, problem: String, answer: String, allow_give_up: bool){
+pub fn create_test_server (bad: HashSet<String>, problem: String,instance: String, answer: String, allow_give_up: bool){
 
 
     // Run the WebSocket
@@ -148,6 +150,7 @@ pub fn create_test_server (bad: HashSet<String>, problem: String, answer: String
             expire_timeout: None,
             bad: bad.clone(),
             problem: problem.clone(),
+            instance: instance.clone(),
             answer: answer.clone(),
             allow_give_up: allow_give_up
         }
