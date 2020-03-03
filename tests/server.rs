@@ -1,4 +1,3 @@
-// 
 use serde_json::Value;
 use std::str::from_utf8;
 use std::collections::HashSet;
@@ -14,11 +13,13 @@ struct Server {
     out: Sender,
     ping_timeout: Option<Timeout>,
     expire_timeout: Option<Timeout>,
-    bad: HashSet<String>,
-    problem: String,
-    instance: String,
+    bad: Vec<Vec<HashSet<String>>>,
+    problem: Vec<String>,
+    instance: Vec<Vec<String>>,
     answer: String,
-    allow_give_up: bool
+    allow_give_up: bool,
+    instance_index: usize,
+    repo_index: usize
 }
 
 impl Handler for Server {
@@ -37,23 +38,59 @@ impl Handler for Server {
                 if data["Solution"] != Value::Null{
                     assert_eq!(data["Solution"].as_str().unwrap(), self.answer);
                     self.out.close(CloseCode::Normal);
+                    
+                    if self.instance_index < self.instance[self.repo_index].len()-1{
+                        self.instance_index += 1;
+                        self.out.send(self.instance[self.repo_index][self.instance_index].clone());
+                    }else if self.repo_index < self.problem.len()-1{
+                        self.repo_index = 0;
+                        self.instance_index = 0;
+                
+                        self.out.send(self.problem[self.repo_index].clone());
+                        self.out.send(self.instance[self.repo_index][self.instance_index].clone());
+                
+                    }else{
+                        self.out.close(CloseCode::Normal);
+                    }
+                    
 
                 }else if data["User"] != Value::Null {
-                    self.out.send(self.problem.clone());
-                    self.out.send(self.instance.clone());
+                    self.repo_index = 0;
+                    self.instance_index = 0;
+                    self.out.send(self.problem[self.repo_index].clone());
+                    self.out.send(self.instance[self.repo_index][self.instance_index].clone());
 
                 }else if data["Question"] != Value::Null {
                     println!("got a question");
-                    if self.bad.contains(data["Question"].as_str().unwrap()){
+                    if self.bad[self.repo_index][self.instance_index].contains(data["Question"].as_str().unwrap()){
                         self.out.send(serde_json::json!({"Answer": "bad"}).to_string());
                     }else{
                         self.out.send(serde_json::json!({"Answer": "good"}).to_string());
                     }
                 }else{
                     println!("Server got message '{}'. ", msg);
-                    self.out.close(CloseCode::Normal);
+                    
+
                     assert_eq!(serde_json::json!("GiveUp").to_string(),text);
                     assert_eq!(self.allow_give_up, true);
+
+                    if !self.allow_give_up{
+                        self.out.close(CloseCode::Normal);
+                    }else{
+                        if self.instance_index < self.instance[self.repo_index].len()-1{
+                            self.instance_index += 1;
+                            self.out.send(self.instance[self.repo_index][self.instance_index].clone());
+                        }else if self.repo_index < self.problem.len()-1{
+                            self.repo_index = 0;
+                            self.instance_index = 0;
+                    
+                            self.out.send(self.problem[self.repo_index].clone());
+                            self.out.send(self.instance[self.repo_index][self.instance_index].clone());
+                    
+                        }else{
+                            self.out.close(CloseCode::Normal);
+                        }
+                    }
                 }
             }
         }
@@ -139,20 +176,29 @@ struct DefaultHandler;
 
 impl Handler for DefaultHandler {}
 
-pub fn create_test_server (bad: HashSet<String>, problem: String,instance: String, answer: String, allow_give_up: bool){
-
-
+pub fn create_single_repo_server (
+    bad: Vec<HashSet<String>>,
+    problem: String,
+    instances: Vec<String>,
+    answer: String,
+    allow_give_up: bool
+){
+    let repo : Vec<String> = vec![problem; 1];
+    let repo_instances : Vec<Vec<String>> = vec![instances; 1];
+    let bad_things : Vec<Vec<HashSet<String>>> = vec![bad; 1];
     // Run the WebSocket
     listen("127.0.0.1:3012", |out| {
         Server {
             out: out,
             ping_timeout: None,
             expire_timeout: None,
-            bad: bad.clone(),
-            problem: problem.clone(),
-            instance: instance.clone(),
+            bad: bad_things.clone(),
+            problem: repo.clone(),
+            instance: repo_instances.clone(),
             answer: answer.clone(),
-            allow_give_up: allow_give_up
+            allow_give_up: allow_give_up,
+            instance_index: 0,
+            repo_index: 0
         }
     }).unwrap();
 }

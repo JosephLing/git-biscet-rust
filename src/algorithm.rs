@@ -57,6 +57,7 @@ pub fn create_children(bad: &String, parents: &mut HashMap<String, Vec<String>>)
         queue.push_back(temp.to_owned());
         results.insert(temp.to_owned());
     }
+    println!("gone through parents of bad commit");
     while !queue.is_empty() {
         let commit = &queue.pop_front().unwrap();
         if let Some(cats) = parents.get(commit) {
@@ -68,7 +69,7 @@ pub fn create_children(bad: &String, parents: &mut HashMap<String, Vec<String>>)
             }
         }
     }
-
+    println!("traversed graph now needing to delete");
     let mut parent_keys : HashSet<String> = HashSet::with_capacity(parents.len());
     for key in parents.keys(){
         parent_keys.insert(key.to_owned());

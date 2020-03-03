@@ -44,6 +44,7 @@ struct Client {
     question_commit: String,
     bad: String,
     parents: HashMap<String, Vec<String>>,
+    parents_master: HashMap<String, Vec<String>>,
 }
 
 impl Handler for Client {
@@ -59,7 +60,7 @@ impl Handler for Client {
             println!("got a msg {:?}", msg);
             if data["Repo"] != Value::Null {
                 println!("be given another problem");
-                self.parents = HashMap::new();
+                self.parents_master = HashMap::new();
                 self.questions = 0;
                 self.question_commit = "".to_owned();
                 let prob: JsonProblemDefinition =
@@ -67,17 +68,20 @@ impl Handler for Client {
                         .unwrap()
                         .Repo;
                 for commit in prob.dag {
-                    self.parents.insert(commit.commit, commit.parents);
+                    self.parents_master.insert(commit.commit, commit.parents);
                 }
+
             } else if data["Score"] != Value::Null {
                 println!("score: {:?}", data);
                 self.out.close(CloseCode::Normal);
+
             } else if data["Instance"] != Value::Null {
                 println!("debuging all the things: {:?}", serde_json::from_value::<JsonInstanceGoodBad>(data.clone())); 
                 let instance = serde_json::from_value::<JsonInstanceGoodBad>(data.clone())
                     .unwrap()
                     .Instance;
                 self.bad = instance.bad;
+                self.parents = self.parents_master.clone();
                 remove_unecessary_good_commits(&instance.good, &mut self.parents);
                 println!("good removal: {:?}", self.parents.len());
                 create_children(&self.bad, &mut self.parents);
@@ -88,10 +92,12 @@ impl Handler for Client {
                     self.question_commit = get_next_guess(&self.bad, &self.parents);
                     send_question(&self.out, self.question_commit.to_string());
                 }
+
             } else if self.questions >= 29 {
                 println!("GIVING UP - moving onto the next question");
                 //TODO: check what the limits are here!? and to see if we can submit a solution maybe??
                 self.out.send(serde_json::json!("GiveUp").to_string());
+
             } else if data["Answer"] != Value::Null {
                 if self.parents.len() == 1 {
                     println!("{:?}", self.parents.keys());
@@ -146,6 +152,7 @@ pub fn run(address: String) {
         bad: "".to_string(),
         question_commit: "".to_string(),
         parents: HashMap::new(),
+        parents_master: HashMap::new(),
     })
     .unwrap();
 }
