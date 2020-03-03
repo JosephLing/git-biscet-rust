@@ -14,13 +14,13 @@ pub struct JsonProblemDefinition {
     // {"name":"pb0","instance_count":10,"dag":[["a",[]],["b",["a"]],["c",["b"]]]}
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct JsonGoodAndBad {
     pub good: String,
     pub bad: String,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Debug)]
 pub struct JsonInstanceGoodBad {
     pub Instance: JsonGoodAndBad,
 }

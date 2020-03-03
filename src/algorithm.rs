@@ -3,6 +3,7 @@ use crate::json_types::*;
 
 use std::collections::VecDeque;
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use rand::distributions::{IndependentSample, Range};
 
@@ -48,35 +49,34 @@ pub fn parse_json(prob: JsonProblemDefinition, goodAndBad: JsonGoodAndBad) -> Ve
 
 pub fn create_children(bad: &String, parents: &mut HashMap<String, Vec<String>>) {
     let mut queue: VecDeque<String> = VecDeque::new();
-    let temp: &Vec<String> = parents.get(bad).unwrap();
-    // children.insert(bad.to_owned(), vec![]);
-    for i in 0..temp.len() {
-        queue.push_back(temp.get(i).unwrap().to_owned());
-        if parents.contains_key(temp.get(i).unwrap()) {
-            // let mut new_children: Vec<String> = Vec::new();
-            // if let Some(child) = children.get(bad) {
-            //     new_children.clone_from(child);
-            // }
-            // new_children.push(bad.to_owned());
-            // children.insert(temp.get(i).unwrap().to_owned(), new_children);
-        }
+    let parents_of_bad: &Vec<String> = parents.get(bad).unwrap();
+    let mut results: HashSet<String> = HashSet::new();
+    results.insert(bad.to_string());
+    for i in 0..parents_of_bad.len() {
+        let temp = parents_of_bad.get(i).unwrap();
+        queue.push_back(temp.to_owned());
+        results.insert(temp.to_owned());
     }
     while !queue.is_empty() {
         let commit = &queue.pop_front().unwrap();
         if let Some(cats) = parents.get(commit) {
             let temp: &Vec<String> = cats;
             for i in 0..temp.len() {
-                queue.push_front(temp.get(i).unwrap().to_owned());
-                if parents.contains_key(temp.get(i).unwrap()) {
-                    // let mut new_children: Vec<String> = Vec::new();
-                    // if let Some(child) = children.get(commit) {
-                    //     new_children.clone_from(child);
-                    // }
-                    // new_children.push(commit.to_owned());
-                    // children.insert(temp.get(i).unwrap().to_owned(), new_children);
-                }
+                let temp = temp.get(i).unwrap();
+                queue.push_back(temp.to_owned());
+                results.insert(temp.to_owned());
             }
         }
+    }
+
+    let mut parent_keys : HashSet<String> = HashSet::with_capacity(parents.len());
+    for key in parents.keys(){
+        parent_keys.insert(key.to_owned());
+    }
+
+    for removal in results.symmetric_difference(&parent_keys){
+        println!("removing: {}", removal);
+        parents.remove(removal);
     }
 }
 
@@ -94,7 +94,6 @@ pub fn get_next_guess(bad: &String, parents: &HashMap<String, Vec<String>>) -> S
 
 fn solve(prob: JsonProblemDefinition, goodAndBad: JsonGoodAndBad) {
     let mut parents = HashMap::new();
-    let mut children: HashMap<String, Vec<String>> = HashMap::new();
     for commit in prob.dag {
         parents.insert(commit.commit, commit.parents);
     }

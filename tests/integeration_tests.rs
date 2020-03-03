@@ -24,8 +24,8 @@ mod integeration {
         let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
         let mut bad: HashSet<String> = HashSet::new();
         bad.insert("e".to_string());
-        bad.insert("d".to_string());
         bad.insert("f".to_string());
+        bad.insert("d".to_string());
         let server = thread::spawn(move || {
             server::create_test_server(bad, data.to_string(), instance.to_string(), "f".to_string(), false);
         });

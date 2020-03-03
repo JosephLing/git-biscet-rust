@@ -1,8 +1,8 @@
-mod json_types;
 mod algorithm;
+mod json_types;
 
-use crate::json_types::*;
 use crate::algorithm::*;
+use crate::json_types::*;
 
 use serde_json::Value;
 
@@ -10,7 +10,6 @@ use std::collections::HashMap;
 
 use ws::Result as ResultWS;
 use ws::{connect, CloseCode, Handler, Handshake, Message, Sender};
-
 
 // note: look into a better way potentailly to do the header...
 // could use a macro or something
@@ -28,15 +27,22 @@ fn send_solution(out: &Sender, msg: String) {
     _send_data(out, "Solution", msg)
 }
 
+fn pretty_print(parents: &HashMap<String, Vec<String>>) {
+    println!("parents:");
+    for key in parents.keys() {
+        println!("{}", key);
+    }
+    println!("-----");
+}
+
 // Our Handler struct.
 // Here we explicity indicate that the Client needs a Sender,
 // whereas a closure captures the Sender for us automatically.
 struct Client {
     out: Sender,
-    good: String,
-    bad: String,
     questions: i32,
     question_commit: String,
+    bad: String,
     parents: HashMap<String, Vec<String>>,
 }
 
@@ -47,6 +53,8 @@ impl Handler for Client {
             .send(serde_json::json!({"User":["jl653", "f6b598a8"]}).to_string())
     }
     fn on_message(&mut self, msg: Message) -> ResultWS<()> {
+        println!(" raw message {:?}", msg);
+        println!(" raw message {:?}", msg.as_text());
         if let Ok(data) = serde_json::from_str::<Value>(msg.as_text().unwrap()) {
             println!("got a msg {:?}", msg);
             if data["Repo"] != Value::Null {
@@ -65,14 +73,14 @@ impl Handler for Client {
                 println!("score: {:?}", data);
                 self.out.close(CloseCode::Normal);
             } else if data["Instance"] != Value::Null {
-                let instance = serde_json::from_value::<JsonInstanceGoodBad>(data)
+                println!("debuging all the things: {:?}", serde_json::from_value::<JsonInstanceGoodBad>(data.clone())); 
+                let instance = serde_json::from_value::<JsonInstanceGoodBad>(data.clone())
                     .unwrap()
                     .Instance;
+                self.bad = instance.bad;
                 remove_unecessary_good_commits(&instance.good, &mut self.parents);
                 println!("good removal: {:?}", self.parents.len());
-                create_children(&instance.bad, &mut self.parents);
-                self.bad = instance.bad;
-                self.good = instance.good;
+                create_children(&self.bad, &mut self.parents);
                 println!("problem reduced to:{:?}", self.parents.len());
                 if self.parents.len() == 1 {
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
@@ -80,8 +88,9 @@ impl Handler for Client {
                     self.question_commit = get_next_guess(&self.bad, &self.parents);
                     send_question(&self.out, self.question_commit.to_string());
                 }
-            } else if self.questions >= 30 {
+            } else if self.questions >= 29 {
                 println!("GIVING UP - moving onto the next question");
+                //TODO: check what the limits are here!? and to see if we can submit a solution maybe??
                 self.out.send(serde_json::json!("GiveUp").to_string());
             } else if data["Answer"] != Value::Null {
                 if self.parents.len() == 1 {
@@ -91,17 +100,19 @@ impl Handler for Client {
                     let answer: String = serde_json::from_value::<JsonAnswer>(data).unwrap().Answer;
                     if answer.eq("bad") {
                         println!("found bad");
+                        pretty_print(&self.parents);
                         self.bad = self.question_commit.clone();
                         create_children(&self.question_commit, &mut self.parents);
                     } else {
                         println!("found good");
-                        self.good = self.question_commit.clone();
+                        pretty_print(&self.parents);
                         remove_unecessary_good_commits(&self.question_commit, &mut self.parents);
                     }
                     if self.parents.len() == 1 {
                         send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                     } else {
                         self.questions += 1;
+                        println!("question {}", self.questions);
                         self.question_commit = get_next_guess(&self.bad, &self.parents);
                         send_question(&self.out, self.question_commit.to_string());
                     }
@@ -134,7 +145,6 @@ pub fn run(address: String) {
         questions: 0,
         bad: "".to_string(),
         question_commit: "".to_string(),
-        good: "".to_string(),
         parents: HashMap::new(),
     })
     .unwrap();
