@@ -20,10 +20,11 @@ mod integeration {
         //               f --> e
         // d has two parents and we only want to get the ones that have a good commit
         // as their parent
-        let data = r#"{"Repo":{"name":"pb0","dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["f",[]]]}}"#;
+        let data = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["f",[]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
         let mut bad: HashSet<String> = HashSet::new();
         bad.insert("e".to_string());
+        bad.insert("d".to_string());
         bad.insert("f".to_string());
         let server = thread::spawn(move || {
             server::create_test_server(bad, data.to_string(), instance.to_string(), "f".to_string(), false);

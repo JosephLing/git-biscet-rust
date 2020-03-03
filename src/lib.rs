@@ -12,6 +12,7 @@ use ws::{connect, CloseCode, Handler, Handshake, Message, Sender};
 #[derive(Debug)]
 enum STATE {
     START,
+    INSTANCE,
     InProgress,
     GiveUp,
     FINISHED,
@@ -86,7 +87,6 @@ fn remove_unecessary_good_commits(
     for i in 0..temp.len() {
         queue.push_back(temp.get(i).unwrap().to_owned());
     }
-
     while !queue.is_empty() {
         let commit = queue.pop_front().unwrap();
         if let Some(cats) = parents.get(&commit) {
@@ -103,11 +103,9 @@ fn remove_unecessary_good_commits(
 fn parse_json(prob: JsonProblemDefinition, goodAndBad: JsonGoodAndBad) -> Vec<String> {
     let mut commits = HashMap::new();
     let mut children = HashMap::new();
-
     for commit in prob.dag {
         commits.insert(commit.commit, commit.parents);
     }
-
     remove_unecessary_good_commits(&goodAndBad.good, &mut commits, &mut children);
     let mut values: Vec<String> = Vec::new();
     for v in commits.keys() {
@@ -115,7 +113,6 @@ fn parse_json(prob: JsonProblemDefinition, goodAndBad: JsonGoodAndBad) -> Vec<St
     }
     println!("{:?}", values);
     create_children(&goodAndBad.bad, &commits, &mut children);
-
     let mut values: Vec<String> = Vec::new();
     for v in children.keys() {
         values.push(v.into());
@@ -144,14 +141,12 @@ fn create_children(
             children.insert(temp.get(i).unwrap().to_owned(), new_children);
         }
     }
-
     while !queue.is_empty() {
         let commit = &queue.pop_front().unwrap();
         if let Some(cats) = parents.get(commit) {
             let temp: &Vec<String> = cats;
             for i in 0..temp.len() {
                 queue.push_front(temp.get(i).unwrap().to_owned());
-
                 if parents.contains_key(temp.get(i).unwrap()) {
                     let mut new_children: Vec<String> = Vec::new();
                     if let Some(child) = children.get(commit) {
@@ -187,7 +182,6 @@ fn solve(prob: JsonProblemDefinition, goodAndBad: JsonGoodAndBad) {
     for commit in prob.dag {
         parents.insert(commit.commit, commit.parents);
     }
-
     remove_unecessary_good_commits(&goodAndBad.good, &mut parents, &mut children);
     create_children(&goodAndBad.bad, &parents, &mut children);
 }
@@ -195,24 +189,19 @@ fn solve(prob: JsonProblemDefinition, goodAndBad: JsonGoodAndBad) {
 #[cfg(test)]
 mod parsing {
     use super::*;
-
     #[test]
     fn test_parse() -> Result<(), serde_json::Error> {
         let data = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
-
         serde_json::from_str::<JsonMessageProblem>(data)?;
         Ok(())
     }
-
     #[test]
     fn test_parse_data() -> Result<(), serde_json::Error> {
         let data = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
-
         let problem = serde_json::from_str::<JsonMessageProblem>(data)?;
         assert_eq!(problem.Repo.name, "pb0");
         Ok(())
     }
-
     #[test]
     fn test_parse_data_tree() -> Result<(), serde_json::Error> {
         let data = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
@@ -221,7 +210,6 @@ mod parsing {
         assert_eq!(problem.Repo.dag.len(), 3);
         Ok(())
     }
-
     #[test]
     fn test_parse_data_tree_node() -> Result<(), serde_json::Error> {
         let data = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
@@ -235,49 +223,44 @@ mod parsing {
 #[cfg(test)]
 mod algorithm {
     use super::*;
-
     fn helper(data: &str, instance: &str) -> Vec<String> {
         let problem = serde_json::from_str::<JsonMessageProblem>(data).unwrap();
-        let mut solution = parse_json(problem.Repo, serde_json::from_str::<JsonInstanceGoodBad>(instance).unwrap().Instance);
+        let mut solution = parse_json(
+            problem.Repo,
+            serde_json::from_str::<JsonInstanceGoodBad>(instance)
+                .unwrap()
+                .Instance,
+        );
         solution.sort();
-
         solution
     }
-
     #[test]
     fn test_linear_tree() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c (bad)
         let data = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"c"}}"#;
-
         let temp = helper(data, instance);
         assert_eq!(temp.len(), 3);
         Ok(())
     }
-
     #[test]
     fn test_linear_tree_value() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c (bad)
-        let data     = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
+        let data = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"c"}}"#;
-
         let solution = helper(data, instance);
         assert_eq!(solution, ["a", "b", "c"]);
         Ok(())
     }
-
     #[test]
     fn test_linear_large() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c (bad)
         let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["e",["d"]],["f",["e"]],["g",["f"]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"g"}}"#;
-
         let solution = helper(data, instance);
-
         assert_eq!(solution, ["a", "b", "c", "d", "e", "f", "g"]);
         Ok(())
     }
-
     #[test]
     fn test_branching() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c
@@ -289,34 +272,28 @@ mod algorithm {
         // as their parent
         let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["f",[]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
-
         let solution = helper(data, instance);
         assert_eq!(solution, ["a", "b", "c", "d", "e", "f"]);
         Ok(())
     }
-
     #[test]
     fn test_commits_before_bad_commit() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c  --> d (bad) --> g
         let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["g",["d"]],["f",[]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
-
         let solution = helper(data, instance);
         assert_eq!(solution, ["a", "b", "c", "d"]);
         Ok(())
     }
-
     #[test]
     fn test_commits_after_good_commit() -> Result<(), serde_json::Error> {
         // a <-- b (good) <-- c <-- d (bad) <-- g
         let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["g",["d"]],["f",[]]]}}"#;
         let instance = r#"{"Instance":{"good":"b","bad":"d"}}"#;
-
         let solution = helper(data, instance);
         assert_eq!(solution, ["b", "c", "d"]);
         Ok(())
     }
-
     #[test]
     fn test_branching_good() -> Result<(), serde_json::Error> {
         // a >-- b --> c --> d
@@ -325,7 +302,6 @@ mod algorithm {
         // \---> bb
         let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["bb",["b"]],["c",["b","bb"]],["d",["c"]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
-
         let solution = helper(data, instance);
         assert_eq!(solution, ["a", "b", "bb", "c", "d"]);
         Ok(())
@@ -337,7 +313,6 @@ mod algorithm {
 // whereas a closure captures the Sender for us automatically.
 struct Client {
     out: Sender,
-    state: STATE,
     good: String,
     bad: String,
     questions: i32,
@@ -352,128 +327,83 @@ impl Handler for Client {
         self.out
             .send(serde_json::json!({"User":["jl653", "f6b598a8"]}).to_string())
     }
-
     fn on_message(&mut self, msg: Message) -> ResultWS<()> {
-        if let Ok(text) = msg.as_text() {
-            println!("got a msg {:?} {:?}", msg, self.state);
-            // if let Ok(data) = serde_json::from_str::<Value>(&text) {
-            //     println!("got valid json");
+        if let Ok(data) = serde_json::from_str::<Value>(msg.as_text().unwrap()) {
+            println!("got a msg {:?}", msg);
+            
+            if data["Repo"] != Value::Null {
+                println!("be given another problem");
+                self.parents = HashMap::new();
+                self.children = HashMap::new();
+                self.questions = 0;
+                self.question_commit = "".to_owned();
+                let prob: JsonProblemDefinition =
+                    serde_json::from_value::<JsonMessageProblem>(data)
+                        .unwrap()
+                        .Repo;
+                for commit in prob.dag {
+                    self.parents.insert(commit.commit, commit.parents);
+                }
+            } else if data["Score"] != Value::Null {
+                println!("score: {:?}", data);
+                self.out.close(CloseCode::Normal);
 
-            //     if data["Repo"] != Value::Null {
-            //         println!("be given another problem");
-            //         self.state = STATE::START;
-            //     }
+            } else if data["Instance"] != Value::Null {
+                let instance = serde_json::from_value::<JsonInstanceGoodBad>(data).unwrap().Instance;
+                remove_unecessary_good_commits(&instance.good, &mut self.parents, &mut self.children);
+                println!("good removal: {:?}", self.parents.len());
+                // create_children(&prob.bad, &self.parents, &mut self.children);
+                self.bad = instance.bad;
+                self.good = instance.good;
+                println!("problem reduced to:{:?}", self.parents.len());
+                if self.parents.len() == 1 {
+                    send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
+                } else {
+                    self.question_commit = get_next_guess(&self.bad, &self.parents, &self.children);
+                    send_question(&self.out, self.question_commit.to_string());
+                }
 
-            //     if data["Score"] != Value::Null {
-            //         println!("score: {:?}", data);
-            //         self.state = STATE::FINISHED;
-            //     }
+            } else if self.questions >= 30 {
+                println!("GIVING UP - moving onto the next question");
+                self.out.send(serde_json::json!("GiveUp").to_string());
 
-            //     self.state = match &self.state {
-            //         STATE::START => {
-            //             self.parents = HashMap::new();
-            //             self.children = HashMap::new();
-            //             self.questions = 0;
-            //             self.question_commit = "".to_owned();
+            } else if data["Answer"] != Value::Null {
+                if self.parents.len() == 1 {
+                    println!("{:?}", self.parents.keys());
+                    send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
+                } else {
+                    let answer: String = serde_json::from_value::<JsonAnswer>(data).unwrap().Answer;
+                    if answer.eq("bad") {
+                        println!("found bad");
+                        self.bad = self.question_commit.clone();
+                    //           create_children(&self.question_commit, &self.parents, &mut self.children);
+                    } else {
+                        println!("found good");
+                        self.good = self.question_commit.clone();
+                        remove_unecessary_good_commits(
+                            &self.question_commit,
+                            &mut self.parents,
+                            &mut self.children,
+                        );
+                    }
+                    if self.parents.len() == 1 {
+                        send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
+                    } else {
+                        self.questions += 1;
+                        self.question_commit =
+                            get_next_guess(&self.bad, &self.parents, &self.children);
+                        send_question(&self.out, self.question_commit.to_string());
+                    }
+                }   
+            }else{
+                println!("uknown json {:?}", msg)
 
-            //             println!("starting");
-            //             let prob: JsonProblemDefinition =
-            //                 serde_json::from_value::<JsonMessageProblem>(data)
-            //                     .unwrap()
-            //                     .Problem;
-            //             for commit in prob.dag {
-            //                 self.parents.insert(commit.commit, commit.parents);
-            //             }
-            //             println!("problem size: {:?}", self.parents.len());
-
-            //             remove_unecessary_good_commits(
-            //                 &prob.good,
-            //                 &mut self.parents,
-            //                 &mut self.children,
-            //             );
-            //             println!("good removal: {:?}", self.parents.len());
-            //             // create_children(&prob.bad, &self.parents, &mut self.children);
-            //             self.bad = prob.bad;
-            //             self.good = prob.good;
-
-            //             println!("problem reduced to:{:?}", self.parents.len());
-            //             if self.parents.len() == 1 {
-            //                 send_solution(
-            //                     &self.out,
-            //                     self.parents.keys().last().unwrap().to_owned(),
-            //                 );
-            //             } else {
-            //                 self.question_commit =
-            //                     get_next_guess(&self.bad, &self.parents, &self.children);
-            //                 send_question(&self.out, self.question_commit.to_string());
-            //             }
-            //             STATE::InProgress
-            //         }
-            //         STATE::InProgress => {
-            //             println!("in progress");
-
-            //             if self.parents.len() < 5 {
-            //                 println!("{} {} {:?}", self.good, self.bad, self.parents.keys());
-            //             }
-
-            //             if self.parents.len() == 1 {
-            //                 println!("{:?}", self.parents.keys());
-            //                 send_solution(
-            //                     &self.out,
-            //                     self.parents.keys().last().unwrap().to_owned(),
-            //                 );
-            //             } else {
-            //                 if data["Answer"] != Value::Null {
-            //                     let answer: String =
-            //                         serde_json::from_value::<JsonAnswer>(data).unwrap().Answer;
-            //                     if answer.eq("bad") {
-            //                         println!("found bad");
-            //                         self.bad = self.question_commit.clone();
-            //                     //           create_children(&self.question_commit, &self.parents, &mut self.children);
-            //                     } else {
-            //                         println!("found good");
-            //                         self.good = self.question_commit.clone();
-            //                         remove_unecessary_good_commits(
-            //                             &self.question_commit,
-            //                             &mut self.parents,
-            //                             &mut self.children,
-            //                         );
-            //                     }
-            //                     println!("problem size: {:?}", self.parents.len());
-            //                 }
-            //                 if self.parents.len() == 1 {
-            //                     send_solution(
-            //                         &self.out,
-            //                         self.parents.keys().last().unwrap().to_owned(),
-            //                     );
-            //                 } else {
-            //                     self.questions += 1;
-            //                     self.question_commit =
-            //                         get_next_guess(&self.bad, &self.parents, &self.children);
-            //                     send_question(&self.out, self.question_commit.to_string());
-            //                     println!("problem size: {:?}", self.parents.len());
-            //                 }
-            //             }
-
-            //             match self.questions {
-            //                 29 => STATE::GiveUp,
-            //                 _ => STATE::InProgress,
-            //             }
-            //         }
-            //         STATE::GiveUp => {
-            //             println!("GIVING UP - moving onto the next question");
-            //             self.out.send(serde_json::json!("GiveUp").to_string());
-            //             STATE::START
-            //         }
-            //         STATE::FINISHED => STATE::FINISHED,
-            //     };
-            // }else{
-            //     println!("invalid json {:?}", msg)
-            // }
+            }
+        } else {
+            println!("invalid json {:?}", msg)
         }
         Ok(())
     }
-
     fn on_close(&mut self, code: CloseCode, reason: &str) {
         // The WebSocket protocol allows for a utf8 reason for the closing state after the
         // close code. WS-RS will attempt to interpret this data as a utf8 description of the
@@ -491,7 +421,6 @@ impl Handler for Client {
 pub fn run(address: String) {
     connect(address, |out| Client {
         out: out,
-        state: STATE::START,
         questions: 0,
         bad: "".to_string(),
         question_commit: "".to_string(),
