@@ -48,7 +48,7 @@ mod integeration {
 
     }
 
-    // #[ignore]
+    #[ignore]
     #[test]
     fn single_instance() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c
@@ -70,7 +70,7 @@ mod integeration {
             data.to_string(),
             instance,
             "f".to_string(),
-            true,
+            false,
         );
         Ok(())
     }
@@ -104,7 +104,7 @@ mod integeration {
             data.to_string(),
             instance,
             "f".to_string(),
-            true,
+            false,
         );
         Ok(())
     }

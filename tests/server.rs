@@ -32,7 +32,6 @@ impl Handler for Server {
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
-        println!("on message: {} {} {}", self.allow_give_up, self.instance_index, self.repo_index); 
         if let Ok(text) = msg.as_text() {
             if let Ok(data) = serde_json::from_str::<Value>(&text) {
                 if data["Solution"] != Value::Null{
@@ -56,23 +55,18 @@ impl Handler for Server {
                     
 
                 }else if data["User"] != Value::Null {
-                    println!("got a user");
                     self.repo_index = 0;
                     self.instance_index = 0;
                     self.out.send(self.problem[self.repo_index].clone());
                     self.out.send(self.instance[self.repo_index][self.instance_index].clone());
 
                 }else if data["Question"] != Value::Null {
-                    println!("got a question");
                     if self.bad[self.repo_index][self.instance_index].contains(data["Question"].as_str().unwrap()){
                         self.out.send(serde_json::json!({"Answer": "bad"}).to_string());
                     }else{
                         self.out.send(serde_json::json!({"Answer": "good"}).to_string());
                     }
                 }else{
-                    println!("Server got message '{}'. ", msg);
-                    
-
                     assert_eq!(serde_json::json!("GiveUp").to_string(),text);
                     assert_eq!(self.allow_give_up, true);
 

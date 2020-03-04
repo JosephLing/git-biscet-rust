@@ -86,7 +86,7 @@ impl Handler for Client {
                 if self.parents.len() == 1 {
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                 } else {
-                    self.question_commit = get_next_guess(&self.bad, &self.parents);
+                    self.question_commit = get_next_guess(&self.bad, &self.parents).unwrap();
                     send_question(&self.out, self.question_commit.to_string());
                 }
 
@@ -100,19 +100,24 @@ impl Handler for Client {
                     println!("{:?}", self.parents.keys());
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                 } else {
+                    println!("answer: {}", self.parents.len());
                     let answer: String = serde_json::from_value::<JsonAnswer>(data).unwrap().Answer;
                     if answer.eq("bad") {
                         self.bad = self.question_commit.clone();
+                        pretty_print(&self.parents);
                         remove_from_bad(&self.question_commit, &mut self.parents);
                     } else {
+                        pretty_print(&self.parents);
                         remove_unecessary_good_commits(&self.question_commit, &mut self.parents);
                     }
+                    pretty_print(&self.parents);
+
                     if self.parents.len() == 1 {
                         send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                     } else {
                         self.questions += 1;
                         println!("question {}", self.questions);
-                        self.question_commit = get_next_guess(&self.bad, &self.parents);
+                        self.question_commit = get_next_guess(&self.bad, &self.parents).unwrap();
                         send_question(&self.out, self.question_commit.to_string());
                     }
                 }
