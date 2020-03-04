@@ -37,7 +37,7 @@ pub fn parse_json(prob: JsonProblemDefinition, goodAndBad: JsonGoodAndBad) -> Ve
         values.push(v.into());
     }
     println!("{:?}", values);
-    create_children(&goodAndBad.bad, &mut commits);
+    remove_from_bad(&goodAndBad.bad, &mut commits);
     let mut values: Vec<String> = Vec::new();
     for v in commits.keys() {
         values.push(v.into());
@@ -47,7 +47,7 @@ pub fn parse_json(prob: JsonProblemDefinition, goodAndBad: JsonGoodAndBad) -> Ve
     return values;
 }
 
-pub fn create_children(bad: &String, parents: &mut HashMap<String, Vec<String>>) {
+pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>) {
     let mut queue: VecDeque<String> = VecDeque::new();
     let parents_of_bad: &Vec<String> = parents.get(bad).unwrap();
     let mut results: HashSet<String> = HashSet::new();
@@ -57,28 +57,26 @@ pub fn create_children(bad: &String, parents: &mut HashMap<String, Vec<String>>)
         queue.push_back(temp.to_owned());
         results.insert(temp.to_owned());
     }
-    println!("gone through parents of bad commit");
     while !queue.is_empty() {
-        let commit = &queue.pop_front().unwrap();
-        if let Some(cats) = parents.get(commit) {
-            let temp: &Vec<String> = cats;
-            for i in 0..temp.len() {
-                let temp = temp.get(i).unwrap();
-                queue.push_back(temp.to_owned());
-                results.insert(temp.to_owned());
+        if let Some(cats) = parents.get(&queue.pop_front().unwrap()) {
+            for i in 0..cats.len() {
+                let temp = cats.get(i).unwrap();
+                if !results.contains(temp) && parents.contains_key(temp){
+                    queue.push_back(temp.to_owned());
+                    results.insert(temp.to_owned());
+                }
             }
         }
     }
-    println!("traversed graph now needing to delete");
     let mut parent_keys : HashSet<String> = HashSet::with_capacity(parents.len());
     for key in parents.keys(){
         parent_keys.insert(key.to_owned());
     }
-
     for removal in results.symmetric_difference(&parent_keys){
-        println!("removing: {}", removal);
         parents.remove(removal);
     }
+    println!("deleted");
+
 }
 
 pub fn get_next_guess(bad: &String, parents: &HashMap<String, Vec<String>>) -> String {
@@ -99,7 +97,7 @@ fn solve(prob: JsonProblemDefinition, goodAndBad: JsonGoodAndBad) {
         parents.insert(commit.commit, commit.parents);
     }
     remove_unecessary_good_commits(&goodAndBad.good, &mut parents);
-    create_children(&goodAndBad.bad, &mut parents);
+    remove_from_bad(&goodAndBad.bad, &mut parents);
 }
 
 

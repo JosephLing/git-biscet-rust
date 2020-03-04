@@ -54,10 +54,7 @@ impl Handler for Client {
             .send(serde_json::json!({"User":["jl653", "f6b598a8"]}).to_string())
     }
     fn on_message(&mut self, msg: Message) -> ResultWS<()> {
-        println!(" raw message {:?}", msg);
-        println!(" raw message {:?}", msg.as_text());
         if let Ok(data) = serde_json::from_str::<Value>(msg.as_text().unwrap()) {
-            println!("got a msg {:?}", msg);
             if data["Repo"] != Value::Null {
                 println!("be given another problem");
                 self.parents_master = HashMap::new();
@@ -76,7 +73,7 @@ impl Handler for Client {
                 self.out.close(CloseCode::Normal);
 
             } else if data["Instance"] != Value::Null {
-                println!("debuging all the things: {:?}", serde_json::from_value::<JsonInstanceGoodBad>(data.clone())); 
+                println!("instance");
                 let instance = serde_json::from_value::<JsonInstanceGoodBad>(data.clone())
                     .unwrap()
                     .Instance;
@@ -84,7 +81,7 @@ impl Handler for Client {
                 self.parents = self.parents_master.clone();
                 remove_unecessary_good_commits(&instance.good, &mut self.parents);
                 println!("good removal: {:?}", self.parents.len());
-                create_children(&self.bad, &mut self.parents);
+                remove_from_bad(&self.bad, &mut self.parents);
                 println!("problem reduced to:{:?}", self.parents.len());
                 if self.parents.len() == 1 {
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
@@ -105,13 +102,9 @@ impl Handler for Client {
                 } else {
                     let answer: String = serde_json::from_value::<JsonAnswer>(data).unwrap().Answer;
                     if answer.eq("bad") {
-                        println!("found bad");
-                        pretty_print(&self.parents);
                         self.bad = self.question_commit.clone();
-                        create_children(&self.question_commit, &mut self.parents);
+                        remove_from_bad(&self.question_commit, &mut self.parents);
                     } else {
-                        println!("found good");
-                        pretty_print(&self.parents);
                         remove_unecessary_good_commits(&self.question_commit, &mut self.parents);
                     }
                     if self.parents.len() == 1 {

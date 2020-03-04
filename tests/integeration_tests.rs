@@ -12,6 +12,7 @@ use gitbisectrust::run;
 mod integeration {
     use super::*;
     
+    #[ignore]
     #[test]
     fn single_instance() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c
@@ -41,7 +42,7 @@ mod integeration {
         Ok(())
     }
 
-
+    #[ignore]
     #[test]
     fn mutliple_instances() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c

@@ -32,10 +32,11 @@ impl Handler for Server {
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
-
+        println!("on message: {} {} {}", self.allow_give_up, self.instance_index, self.repo_index); 
         if let Ok(text) = msg.as_text() {
             if let Ok(data) = serde_json::from_str::<Value>(&text) {
                 if data["Solution"] != Value::Null{
+                    println!("got a solution");
                     assert_eq!(data["Solution"].as_str().unwrap(), self.answer);
                     self.out.close(CloseCode::Normal);
                     
@@ -50,11 +51,12 @@ impl Handler for Server {
                         self.out.send(self.instance[self.repo_index][self.instance_index].clone());
                 
                     }else{
-                        self.out.close(CloseCode::Normal);
+                        return self.out.close(CloseCode::Normal);
                     }
                     
 
                 }else if data["User"] != Value::Null {
+                    println!("got a user");
                     self.repo_index = 0;
                     self.instance_index = 0;
                     self.out.send(self.problem[self.repo_index].clone());
@@ -88,7 +90,7 @@ impl Handler for Server {
                             self.out.send(self.instance[self.repo_index][self.instance_index].clone());
                     
                         }else{
-                            self.out.close(CloseCode::Normal);
+                            return self.out.close(CloseCode::Normal);
                         }
                     }
                 }
