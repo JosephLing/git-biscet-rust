@@ -1,12 +1,8 @@
-use crate::json_types::*;
-
-
-use std::collections::VecDeque;
 use std::collections::HashMap;
 use std::collections::HashSet;
+use std::collections::VecDeque;
 
 use rand::distributions::{IndependentSample, Range};
-
 
 pub fn remove_unecessary_good_commits(good: &String, parents: &mut HashMap<String, Vec<String>>) {
     let mut queue: VecDeque<String> = VecDeque::new();
@@ -26,27 +22,6 @@ pub fn remove_unecessary_good_commits(good: &String, parents: &mut HashMap<Strin
     }
 }
 
-pub fn parse_json(prob: JsonProblemDefinition, goodAndBad: JsonGoodAndBad) -> Vec<String> {
-    let mut commits = HashMap::new();
-    for commit in prob.dag {
-        commits.insert(commit.commit, commit.parents);
-    }
-    remove_unecessary_good_commits(&goodAndBad.good, &mut commits);
-    let mut values: Vec<String> = Vec::new();
-    for v in commits.keys() {
-        values.push(v.into());
-    }
-    println!("{:?}", values);
-    remove_from_bad(&goodAndBad.bad, &mut commits);
-    let mut values: Vec<String> = Vec::new();
-    for v in commits.keys() {
-        values.push(v.into());
-    }
-    println!("{:?}", values);
-    // remove commits
-    return values;
-}
-
 pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>) {
     let mut queue: VecDeque<String> = VecDeque::new();
     let parents_of_bad: &Vec<String> = parents.get(bad).unwrap();
@@ -61,22 +36,21 @@ pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>)
         if let Some(cats) = parents.get(&queue.pop_front().unwrap()) {
             for i in 0..cats.len() {
                 let temp = cats.get(i).unwrap();
-                if !results.contains(temp) && parents.contains_key(temp){
+                if !results.contains(temp) && parents.contains_key(temp) {
                     queue.push_back(temp.to_owned());
                     results.insert(temp.to_owned());
                 }
             }
         }
     }
-    let mut parent_keys : HashSet<String> = HashSet::with_capacity(parents.len());
-    for key in parents.keys(){
+    let mut parent_keys: HashSet<String> = HashSet::with_capacity(parents.len());
+    for key in parents.keys() {
         parent_keys.insert(key.to_owned());
     }
-    for removal in results.symmetric_difference(&parent_keys){
+    for removal in results.symmetric_difference(&parent_keys) {
         parents.remove(removal);
     }
     println!("deleted");
-
 }
 
 pub fn get_next_guess(bad: &String, parents: &HashMap<String, Vec<String>>) -> String {
@@ -91,19 +65,33 @@ pub fn get_next_guess(bad: &String, parents: &HashMap<String, Vec<String>>) -> S
     return "".to_owned();
 }
 
-fn solve(prob: JsonProblemDefinition, goodAndBad: JsonGoodAndBad) {
-    let mut parents = HashMap::new();
-    for commit in prob.dag {
-        parents.insert(commit.commit, commit.parents);
-    }
-    remove_unecessary_good_commits(&goodAndBad.good, &mut parents);
-    remove_from_bad(&goodAndBad.bad, &mut parents);
-}
-
-
 #[cfg(test)]
 mod algorithm {
     use super::*;
+    use crate::json_types::*;
+
+
+    fn parse_json(prob: JsonProblemDefinition, goodAndBad: JsonGoodAndBad) -> Vec<String> {
+        let mut commits = HashMap::new();
+        for commit in prob.dag {
+            commits.insert(commit.commit, commit.parents);
+        }
+        remove_unecessary_good_commits(&goodAndBad.good, &mut commits);
+        let mut values: Vec<String> = Vec::new();
+        for v in commits.keys() {
+            values.push(v.into());
+        }
+        println!("{:?}", values);
+        remove_from_bad(&goodAndBad.bad, &mut commits);
+        let mut values: Vec<String> = Vec::new();
+        for v in commits.keys() {
+            values.push(v.into());
+        }
+        println!("{:?}", values);
+        // remove commits
+        return values;
+    }
+
     fn helper(data: &str, instance: &str) -> Vec<String> {
         let problem = serde_json::from_str::<JsonMessageProblem>(data).unwrap();
         let mut solution = parse_json(
@@ -115,6 +103,7 @@ mod algorithm {
         solution.sort();
         solution
     }
+
     #[test]
     fn test_linear_tree() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c (bad)
@@ -124,6 +113,7 @@ mod algorithm {
         assert_eq!(temp.len(), 3);
         Ok(())
     }
+    
     #[test]
     fn test_linear_tree_value() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c (bad)
