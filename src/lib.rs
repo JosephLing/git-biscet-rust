@@ -69,7 +69,7 @@ impl Handler for Client {
                 }
 
             } else if data["Score"] != Value::Null {
-                println!("score: {:?}", data);
+                println!("score: {}", serde_json::from_value::<JsonScore>(data).unwrap());
                 self.out.close(CloseCode::Normal);
 
             } else if data["Instance"] != Value::Null {

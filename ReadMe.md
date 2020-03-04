@@ -3,7 +3,6 @@ https://rgrig.github.io/plad/homework.html
 
 
 ### problems:
-- not printing out the scores nicely
 - remove random picking and use scoring
 	- implement binary search method first
 	- then the proper counting method?
@@ -13,6 +12,7 @@ https://rgrig.github.io/plad/homework.html
 ### Fixed:
 - integeration test server isn't working
   - can revert if necessary to old version but that can't test multiple instances or repos
+- not printing out the scores nicely
 
 
 ### Binary search implementation:

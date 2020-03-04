@@ -1,4 +1,7 @@
+use serde_json::{Value};
 use serde::{Deserialize, Serialize};
+use std::fmt; // Import `fmt`
+use std::collections::HashMap;
 
 #[derive(Serialize, Deserialize)]
 pub struct JsonNode {
@@ -32,14 +35,42 @@ pub struct JsonMessageProblem {
 
 #[derive(Serialize, Deserialize, Debug)]
 #[allow(non_snake_case)]
-pub struct JsonScore {
-    pub Score: String, // {pb0: 2} or null or {pb0: null}
+pub struct JsonAnswer {
+    pub Answer: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
 #[allow(non_snake_case)]
-pub struct JsonAnswer {
-    pub Answer: String,
+pub struct JsonScore {
+    pub Score: HashMap<String, Value>,
+}
+
+impl fmt::Display for JsonScore {
+
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        let mut gaveup = 0;
+        let mut correct = 0;
+        let mut wrong = 0;
+        writeln!(f, "scores: ");
+        for k in self.Score.keys(){
+            let temp = self.Score.get(k).unwrap();
+            if temp["Correct"] != Value::Null{
+                correct += 1;
+                writeln!(f,"{} took {:?} questions", k, temp["Correct"].to_string());
+            }else {
+                let temp : String = temp.to_string();
+                if temp.trim() == r#""wrong""#.to_string(){
+                    wrong += 1;
+                }else if temp == r#""GiveUp""#.to_string(){
+                    gaveup += 1;
+                }
+                writeln!(f,"{} {}", k, temp.trim());
+            }
+        }
+        writeln!(f, "total correct: {}, wrong: {}, gaveup: {}", correct, wrong, gaveup);
+        writeln!(f, "------")
+    }
+
 }
 
 #[cfg(test)]
