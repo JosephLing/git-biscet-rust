@@ -80,7 +80,7 @@ pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>)
 }
 
 pub fn get_next_guess(bad: &String, parents: &HashMap<String, Vec<String>>) -> String {
-    let chance = Range::new(0, parents.len() - 1).ind_sample(&mut rand::thread_rng());
+    let chance = parents.len() / 2;
     let mut count = 0;
     for k in parents.keys() {
         if count >= chance {

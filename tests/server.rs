@@ -179,17 +179,19 @@ struct DefaultHandler;
 impl Handler for DefaultHandler {}
 
 pub fn create_single_repo_server (
+    host: String,
     bad: Vec<HashSet<String>>,
     problem: String,
     instances: Vec<String>,
     answer: String,
     allow_give_up: bool
 ){
+    println!("creating integeration test webserver");
     let repo : Vec<String> = vec![problem; 1];
     let repo_instances : Vec<Vec<String>> = vec![instances; 1];
     let bad_things : Vec<Vec<HashSet<String>>> = vec![bad; 1];
     // Run the WebSocket
-    listen("127.0.0.1:3012", |out| {
+    listen(host, |out| {
         Server {
             out: out,
             ping_timeout: None,
