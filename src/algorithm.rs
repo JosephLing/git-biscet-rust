@@ -20,6 +20,9 @@ pub fn remove_unecessary_good_commits(good: &String, parents: &mut HashMap<Strin
             parents.remove_entry(&commit);
         }
     }
+    // this is necessary for binary search but won't work well
+    // for the "proper" way of counting
+    parents.remove_entry(good);
 }
 
 pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>) {
@@ -63,7 +66,6 @@ pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>)
 /// actually be fully half way down the tree.
 pub fn get_next_guess(bad: &String, parents: &HashMap<String, Vec<String>>) -> Option<String> {
     let half_way = (parents.len() as f64 / 2 as f64).ceil() as usize;
-
     let mut count = 1;
     let mut queue: VecDeque<String> = VecDeque::new();
     let parents_of_bad: &Vec<String> = parents.get(bad).unwrap();
@@ -146,7 +148,7 @@ mod removal {
         let data = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"c"}}"#;
         let temp = helper(data, instance);
-        assert_eq!(temp.len(), 3);
+        assert_eq!(temp.len(), 2);
         Ok(())
     }
 
@@ -156,7 +158,7 @@ mod removal {
         let data = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"c"}}"#;
         let solution = helper(data, instance);
-        assert_eq!(solution, ["a", "b", "c"]);
+        assert_eq!(solution, ["b", "c"]);
         Ok(())
     }
 
@@ -166,7 +168,7 @@ mod removal {
         let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["e",["d"]],["f",["e"]],["g",["f"]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"g"}}"#;
         let solution = helper(data, instance);
-        assert_eq!(solution, ["a", "b", "c", "d", "e", "f", "g"]);
+        assert_eq!(solution, ["b", "c", "d", "e", "f", "g"]);
         Ok(())
     }
 
@@ -182,7 +184,7 @@ mod removal {
         let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["f",[]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
         let solution = helper(data, instance);
-        assert_eq!(solution, ["a", "b", "c", "d", "e", "f"]);
+        assert_eq!(solution, ["b", "c", "d", "e", "f"]);
         Ok(())
     }
 
@@ -192,7 +194,7 @@ mod removal {
         let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["g",["d"]],["f",[]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
         let solution = helper(data, instance);
-        assert_eq!(solution, ["a", "b", "c", "d"]);
+        assert_eq!(solution, ["b", "c", "d"]);
         Ok(())
     }
 
@@ -202,7 +204,7 @@ mod removal {
         let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c"]],["g",["d"]],["f",[]]]}}"#;
         let instance = r#"{"Instance":{"good":"b","bad":"d"}}"#;
         let solution = helper(data, instance);
-        assert_eq!(solution, ["b", "c", "d"]);
+        assert_eq!(solution, ["c", "d"]);
         Ok(())
     }
 
@@ -215,7 +217,7 @@ mod removal {
         let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["bb",["b"]],["c",["b","bb"]],["d",["c"]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
         let solution = helper(data, instance);
-        assert_eq!(solution, ["a", "b", "bb", "c", "d"]);
+        assert_eq!(solution, ["b", "bb", "c", "d"]);
         Ok(())
     }
 }

@@ -37,7 +37,6 @@ impl Handler for Server {
                 if data["Solution"] != Value::Null{
                     println!("got a solution");
                     assert_eq!(data["Solution"].as_str().unwrap(), self.answer);
-                    self.out.close(CloseCode::Normal);
                     
                     if self.instance_index < self.instance[self.repo_index].len()-1{
                         self.instance_index += 1;
@@ -61,6 +60,7 @@ impl Handler for Server {
                     self.out.send(self.instance[self.repo_index][self.instance_index].clone());
 
                 }else if data["Question"] != Value::Null {
+                    println!("question: {} {} {:?}", self.repo_index, self.instance_index, self.bad[self.repo_index][self.instance_index]);
                     if self.bad[self.repo_index][self.instance_index].contains(data["Question"].as_str().unwrap()){
                         self.out.send(serde_json::json!({"Answer": "bad"}).to_string());
                     }else{

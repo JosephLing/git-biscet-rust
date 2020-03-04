@@ -48,7 +48,6 @@ mod integeration {
 
     }
 
-    #[ignore]
     #[test]
     fn single_instance() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c
@@ -75,7 +74,32 @@ mod integeration {
         Ok(())
     }
 
-    // #[ignore]
+    #[test]
+    /// NOTE: leave me in as a test specailly if searching method changes
+    fn single_instance_2() -> Result<(), serde_json::Error> {
+        // a (good) --> b --> c
+        //                     \
+        //                      d (bad)
+        //                      /
+        //               f --> e
+        // d has two parents and we only want to get the ones that have a good commit
+        // as their parent
+        let data = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["f",[]]]}}"#;
+        let instance = vec![r#"{"Instance":{"good":"a","bad":"d"}}"#.to_string()];
+        let mut bad: HashSet<String> = HashSet::new();
+        bad.insert("c".to_string());
+        bad.insert("d".to_string());
+        helper(
+            &"3012".to_string(),
+            vec![bad; 1],
+            data.to_string(),
+            instance,
+            "c".to_string(),
+            false,
+        );
+        Ok(())
+    }
+
     #[test]
     fn mutliple_instances() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c
@@ -91,15 +115,17 @@ mod integeration {
             r#"{"Instance":{"good":"a","bad":"d"}}"#.to_string(),
         ];
         let mut bad: HashSet<String> = HashSet::new();
-        bad.insert("c".to_string());
+        bad.insert("e".to_string());
+        bad.insert("f".to_string());
         bad.insert("d".to_string());
 
         let mut bad2: HashSet<String> = HashSet::new();
-        bad2.insert("c".to_string());
+        bad2.insert("e".to_string());
+        bad2.insert("f".to_string());
         bad2.insert("d".to_string());
 
         helper(
-            &"3012".to_string(),
+            &"3013".to_string(),
             vec![bad, bad2],
             data.to_string(),
             instance,

@@ -28,11 +28,11 @@ fn send_solution(out: &Sender, msg: String) {
 }
 
 fn pretty_print(parents: &HashMap<String, Vec<String>>) {
-    println!("parents:");
-    for key in parents.keys() {
-        println!("{}", key);
-    }
-    println!("-----");
+    // println!("parents: {:?}", parents);
+    // for key in parents.keys() {
+        // println!("{}", key);
+    // }
+    // println!("-----");
 }
 
 // Our Handler struct.
@@ -78,6 +78,7 @@ impl Handler for Client {
                     .unwrap()
                     .Instance;
                 self.bad = instance.bad;
+                self.questions = 0;
                 self.parents = self.parents_master.clone();
                 remove_unecessary_good_commits(&instance.good, &mut self.parents);
                 println!("good removal: {:?}", self.parents.len());
