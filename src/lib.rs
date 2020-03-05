@@ -28,7 +28,7 @@ fn send_solution(out: &Sender, msg: String) {
 }
 
 fn pretty_print(parents: &HashMap<String, Vec<String>>) {
-    // println!("parents: {:?}", parents);
+    println!("parents: {:?}", parents);
     // for key in parents.keys() {
         // println!("{}", key);
     // }

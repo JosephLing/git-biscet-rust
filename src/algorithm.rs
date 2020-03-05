@@ -214,7 +214,7 @@ mod removal {
         // v     |
         // |     ^
         // \---> bb
-        let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["bb",["b"]],["c",["b","bb"]],["d",["c"]]]}}"#;
+        let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a","bb"]],["bb",["a"]],["c",["b"]],["d",["c"]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
         let solution = helper(data, instance);
         assert_eq!(solution, ["b", "bb", "c", "d"]);

@@ -16,7 +16,7 @@ struct Server {
     bad: Vec<Vec<HashSet<String>>>,
     problem: Vec<String>,
     instance: Vec<Vec<String>>,
-    answer: String,
+    answer: Vec<String>,
     allow_give_up: bool,
     instance_index: usize,
     repo_index: usize
@@ -36,16 +36,20 @@ impl Handler for Server {
             if let Ok(data) = serde_json::from_str::<Value>(&text) {
                 if data["Solution"] != Value::Null{
                     println!("got a solution");
-                    assert_eq!(data["Solution"].as_str().unwrap(), self.answer);
+                    assert_eq!(data["Solution"].as_str().unwrap(), self.answer[self.repo_index + self.instance_index]);
                     
                     if self.instance_index < self.instance[self.repo_index].len()-1{
                         self.instance_index += 1;
+                        println!("server instance >>> {:?}", self.instance[self.repo_index][self.instance_index].clone());
                         self.out.send(self.instance[self.repo_index][self.instance_index].clone());
                     }else if self.repo_index < self.problem.len()-1{
                         self.repo_index = 0;
                         self.instance_index = 0;
-                
+                        
+                        println!("server prob >>> {:?}", self.problem[self.repo_index].clone());
                         self.out.send(self.problem[self.repo_index].clone());
+                        
+                        println!("server instance>>> {:?}", self.instance[self.repo_index][self.instance_index].clone());
                         self.out.send(self.instance[self.repo_index][self.instance_index].clone());
                 
                     }else{
@@ -75,6 +79,7 @@ impl Handler for Server {
                     }else{
                         if self.instance_index < self.instance[self.repo_index].len()-1{
                             self.instance_index += 1;
+                            println!("server >>> {:?}", self.instance[self.repo_index][self.instance_index].clone());
                             self.out.send(self.instance[self.repo_index][self.instance_index].clone());
                         }else if self.repo_index < self.problem.len()-1{
                             self.repo_index = 0;
@@ -177,7 +182,7 @@ pub fn create_single_repo_server (
     bad: Vec<HashSet<String>>,
     problem: String,
     instances: Vec<String>,
-    answer: String,
+    answer: Vec<String>,
     allow_give_up: bool
 ){
     println!("creating integeration test webserver");

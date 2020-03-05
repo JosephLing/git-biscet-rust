@@ -19,7 +19,7 @@ mod integeration {
         bad: Vec<HashSet<String>>,
         problem: String,
         instances: Vec<String>,
-        answer: String,
+        answer: Vec<String>,
         allow_give_up: bool,
     ) {
         let server_host = "127.0.0.1:".to_string() + host;
@@ -47,7 +47,7 @@ mod integeration {
         println!("client finished");
 
     }
-
+    
     #[test]
     fn single_instance() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c
@@ -68,7 +68,7 @@ mod integeration {
             vec![bad; 1],
             data.to_string(),
             instance,
-            "f".to_string(),
+            vec!["f".to_string()],
             false,
         );
         Ok(())
@@ -94,12 +94,11 @@ mod integeration {
             vec![bad; 1],
             data.to_string(),
             instance,
-            "c".to_string(),
+            vec!["c".to_string()],
             false,
         );
         Ok(())
     }
-
     #[test]
     fn mutliple_instances() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c
@@ -120,8 +119,7 @@ mod integeration {
         bad.insert("d".to_string());
 
         let mut bad2: HashSet<String> = HashSet::new();
-        bad2.insert("e".to_string());
-        bad2.insert("f".to_string());
+        bad2.insert("c".to_string());
         bad2.insert("d".to_string());
 
         helper(
@@ -129,7 +127,39 @@ mod integeration {
             vec![bad, bad2],
             data.to_string(),
             instance,
-            "f".to_string(),
+            vec!["f".to_string(), "c".to_string()],
+            false,
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn mutliple_instances_circular() -> Result<(), serde_json::Error> {
+        // a >-- b --> c --> d
+        // v     |
+        // |     ^
+        // \---> bb
+        let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a", "bb"]],["bb",["a"]],["c",["b","bb"]],["d",["c"]]]}}"#;
+        let instance = vec![
+            r#"{"Instance":{"good":"a","bad":"d"}}"#.to_string(),
+            r#"{"Instance":{"good":"a","bad":"d"}}"#.to_string(),
+        ];
+        let mut bad: HashSet<String> = HashSet::new();
+        bad.insert("d".to_string());
+        bad.insert("c".to_string());
+        bad.insert("b".to_string());
+        bad.insert("bb".to_string());
+
+        let mut bad2: HashSet<String> = HashSet::new();
+        bad2.insert("c".to_string());
+        bad2.insert("d".to_string());
+
+        helper(
+            &"3014".to_string(),
+            vec![bad, bad2],
+            data.to_string(),
+            instance,
+            vec!["bb".to_string(), "c".to_string()],
             false,
         );
         Ok(())
