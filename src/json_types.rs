@@ -58,7 +58,7 @@ impl fmt::Display for JsonScore {
                 correct += 1;
                 writeln!(f,"{} took {:?} questions", k, temp["Correct"].to_string());
             }else {
-                let temp : String = temp.to_string();
+                let temp = temp.to_string();
                 if temp.trim() == r#""Wrong""#.to_string(){
                     wrong += 1;
                 }else if temp.trim() == r#""GiveUp""#.to_string(){
