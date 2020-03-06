@@ -1,8 +1,8 @@
 mod server;
+extern crate gitbisectrust;
 
 use std::thread;
 
-extern crate gitbisectrust;
 use std::collections::HashSet;
 
 pub use crate::server::create_single_repo_server;

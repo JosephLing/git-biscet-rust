@@ -65,6 +65,7 @@ pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>)
 /// and keep on going like that. Therefore even if we are going half way it might not
 /// actually be fully half way down the tree.
 pub fn get_next_guess(bad: &String, parents: &HashMap<String, Vec<String>>) -> Option<String> {
+    println!("get_next_guess {} {}", bad, parents.len());
     let half_way = (parents.len() as f64 / 2 as f64).ceil() as usize;
     let mut count = 1;
     let mut queue: VecDeque<String> = VecDeque::new();
@@ -218,6 +219,21 @@ mod removal {
         let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
         let solution = helper(data, instance);
         assert_eq!(solution, ["b", "bb", "c", "d"]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_branching_daimond() -> Result<(), serde_json::Error> {
+        //
+        //    b
+        //   /  \
+        //  a    d
+        //   \ c /
+        //     
+        let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["c",["a"]],["d",["c", "b"]]]}}"#;
+        let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
+        let solution = helper(data, instance);
+        assert_eq!(solution, ["b", "c", "d"]);
         Ok(())
     }
 }

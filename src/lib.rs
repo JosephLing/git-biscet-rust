@@ -1,8 +1,8 @@
 mod algorithm;
-mod json_types;
+pub mod json_types;
 
 use crate::algorithm::*;
-use crate::json_types::*;
+pub use crate::json_types::*;
 
 use serde_json::Value;
 
@@ -28,7 +28,7 @@ fn send_solution(out: &Sender, msg: String) {
 }
 
 fn pretty_print(parents: &HashMap<String, Vec<String>>) {
-    println!("parents: {:?}", parents);
+    // println!("parents: {:?}", parents);
     // for key in parents.keys() {
         // println!("{}", key);
     // }
@@ -56,7 +56,7 @@ impl Handler for Client {
     fn on_message(&mut self, msg: Message) -> ResultWS<()> {
         if let Ok(data) = serde_json::from_str::<Value>(msg.as_text().unwrap()) {
             if data["Repo"] != Value::Null {
-                println!("be given another problem");
+                println!("been given another problem");
                 self.parents_master = HashMap::new();
                 self.questions = 0;
                 self.question_commit = "".to_owned();
@@ -67,6 +67,7 @@ impl Handler for Client {
                 for commit in prob.dag {
                     self.parents_master.insert(commit.commit, commit.parents);
                 }
+                println!("problem size: {}", self.parents_master.len());
 
             } else if data["Score"] != Value::Null {
                 println!("score: {}", serde_json::from_value::<JsonScore>(data).unwrap());
@@ -77,6 +78,8 @@ impl Handler for Client {
                 let instance = serde_json::from_value::<JsonInstanceGoodBad>(data.clone())
                     .unwrap()
                     .Instance;
+                println!("instance: {} {}", &instance.good, &instance.bad);
+                println!("instance: {:?} {:?}", self.parents_master.contains_key(&instance.good), self.parents_master.contains_key(&instance.bad));
                 self.bad = instance.bad;
                 self.questions = 0;
                 self.parents = self.parents_master.clone();
