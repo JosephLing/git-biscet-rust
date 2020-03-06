@@ -61,7 +61,7 @@ impl fmt::Display for JsonScore {
                 let temp = temp.to_string();
                 if temp.trim() == r#""Wrong""#.to_string(){
                     wrong += 1;
-                }else if temp.trim() == r#""GiveUp""#.to_string(){
+                }else if temp.trim() == r#""GaveUp""#.to_string(){
                     gaveup += 1;
                 }
                 writeln!(f,"{} {}", k, temp.trim());
