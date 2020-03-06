@@ -28,7 +28,7 @@ impl Handler for Server {
         // schedule a timeout to send a ping every 5 seconds
         self.out.timeout(5_000, PING)?;
         // schedule a timeout to close the connection if there is no activity for 30 seconds
-        self.out.timeout(10_000, EXPIRE)
+        self.out.timeout(1000_000, EXPIRE)
     }
 
     fn on_message(&mut self, msg: Message) -> Result<()> {
@@ -111,6 +111,7 @@ impl Handler for Server {
 
         println!("Shutting down server after first connection closes.");
         self.out.shutdown().unwrap();
+        assert_eq!(code, CloseCode::Normal);
     }
 
     fn on_error(&mut self, err: Error) {
@@ -165,7 +166,7 @@ impl Handler for Server {
         }
 
         // Some activity has occured, so reset the expiration
-        self.out.timeout(10_000, EXPIRE)?;
+        self.out.timeout(500_000, EXPIRE)?;
 
         // Run default frame validation
         DefaultHandler.on_frame(frame)
@@ -195,6 +196,38 @@ pub fn create_single_repo_server (
             out: out,
             ping_timeout: None,
             expire_timeout: None,
+            bad: bad_things.clone(),
+            problem: repo.clone(),
+            instance: repo_instances.clone(),
+            answer: answer.clone(),
+            allow_give_up: allow_give_up,
+            instance_index: 0,
+            repo_index: 0
+        }
+    }).unwrap();
+}
+
+
+pub fn create_single_repo_server_timeout (
+    host: String,
+    bad: Vec<HashSet<String>>,
+    problem: String,
+    instances: Vec<String>,
+    answer: Vec<String>,
+    allow_give_up: bool,
+    ping_timeout: Option<Timeout>,
+    expire_timeout: Option<Timeout>
+){
+    println!("creating integeration test webserver");
+    let repo : Vec<String> = vec![problem; 1];
+    let repo_instances : Vec<Vec<String>> = vec![instances; 1];
+    let bad_things : Vec<Vec<HashSet<String>>> = vec![bad; 1];
+    // Run the WebSocket
+    listen(host, |out| {
+        Server {
+            out: out,
+            ping_timeout: ping_timeout.clone(),
+            expire_timeout: expire_timeout.clone(),
             bad: bad_things.clone(),
             problem: repo.clone(),
             instance: repo_instances.clone(),

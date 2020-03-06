@@ -22,7 +22,7 @@ struct JsonFileProblem {
 }
 
 #[cfg(test)]
-mod cats {
+mod bigJsonExamples {
     use super::*;
     fn helper(
         host: &String,
@@ -56,11 +56,6 @@ mod cats {
     }
 
     fn helper_file(filename: String, host: String) -> Result<()> {
-        // // --snip--
-        // let path = env::current_dir().expect("cats");
-        // println!("{:?}", path);
-        // let filename = format!("{}/tests/test_data/{}.json", path.display(), name);
-        // println!("In file {}", filename);
         let contents = fs::read_to_string(filename).expect("Something went wrong reading the file");
         let data = serde_json::from_str::<Value>(&contents).unwrap();
         let bad = serde_json::from_value::<JsonFileProblem>(data[1].clone())
@@ -137,20 +132,24 @@ mod cats {
     }
 
     
+    // --------------------------------------------------------
+    // so these both fail with a give up giving up at getting to a dag 
+    // of the size of 249 things
+    // that means they are probably the same question
     #[test]
     fn test_test() -> Result<()> {
+        // 249
         helper_loader(&"test_test".to_string(), "36".to_string());
-        Ok(())
+        Ok(())  
     }
 
     #[test]
-    #[ignore]
     // need to implement higher timeouts for these and
     // it's expected that these fails
     fn test_linux() -> Result<()> {
-        helper_file("test_linux0".to_string(), "4001".to_string());
-        helper_file("test_linux1".to_string(), "4002".to_string());
-        helper_file("test_linux2".to_string(), "4003".to_string());
-        helper_file("test_linux3".to_string(), "4004".to_string())
+        // test_linux0 get's down to 249 repos in 29 questions
+        helper_loader(&"linux".to_string(), "37".to_string());
+        Ok(())
+
     }
 }
