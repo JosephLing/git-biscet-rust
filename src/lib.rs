@@ -34,6 +34,19 @@ fn pretty_print(parents: &HashMap<String, Vec<String>>) {
         // println!("{}", key);
     // }
     // println!("-----");
+
+    // let mut debug: String = "digraph G {\n".to_string();
+    // // debug += &format!("node [shape = doublecircle, color=red]; {}\n", instance.bad);
+    // // debug += &format!("node [shape = doublecircle, color=green]; {}\n", instance.good);
+    // debug += "node [shape = circle, color=black];\n";
+    // for node in parents.keys() {
+    //     for parent in parents.get(node).unwrap() {
+    //         debug = debug + &format!("{} -> {}\n", node, parent);
+    //     }
+    // }
+    // debug = debug + &"}".to_string();
+    // println!("---------------------");
+    // println!("{}", debug);
 }
 
 // Our Handler struct.
@@ -65,7 +78,7 @@ impl Handler for Client {
                     serde_json::from_value::<JsonMessageProblem>(data)
                         .unwrap()
                         .Repo;
-                
+                println!("{}", prob.name);
                 for commit in prob.dag {
                     self.parents_master.insert(commit.commit, commit.parents);
                 }
@@ -117,8 +130,9 @@ impl Handler for Client {
                     println!("{:?}", self.parents.keys());
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                 } else {
-                    println!("answer: {}", self.parents.len());
                     let answer: String = serde_json::from_value::<JsonAnswer>(data).unwrap().Answer;
+                    println!("answer: {} {}", self.question_commit, answer);
+
                     if answer.eq("bad") {
                         self.bad = self.question_commit.clone();
                         pretty_print(&self.parents);

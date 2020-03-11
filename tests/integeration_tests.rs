@@ -51,7 +51,7 @@ mod integeration {
     #[test]
     fn single_instance() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c
-        //                     \
+        //                     
         //                      d (bad)
         //                      /
         //               f --> e
@@ -77,7 +77,7 @@ mod integeration {
     #[test]
     fn trap_bad_commit() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c
-        //                     \
+        //                     
         //                      d (bad)
         //                      /
         //         g --> f --> e
@@ -103,7 +103,7 @@ mod integeration {
     /// NOTE: leave me in as a test specailly if searching method changes
     fn single_instance_2() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c
-        //                     \
+        //                     
         //                      d (bad)
         //                      /
         //               f --> e
@@ -127,7 +127,7 @@ mod integeration {
     #[test]
     fn mutliple_instances() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c
-        //                     \
+        //                     
         //                      d (bad)
         //                      /
         //               f --> e
@@ -163,7 +163,7 @@ mod integeration {
         // a >-- b --> c --> d
         // v     |
         // |     ^
-        // \---> bb
+        // ---> bb
         let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a", "bb"]],["bb",["a"]],["c",["b","bb"]],["d",["c"]]]}}"#;
         let instance = vec![
             r#"{"Instance":{"good":"a","bad":"d"}}"#.to_string(),
@@ -189,4 +189,31 @@ mod integeration {
         );
         Ok(())
     }
+
+    #[test]
+    fn tiny_problem() -> Result<(), serde_json::Error> {
+        let data = r#"{"Repo":{"name":"tiny-diamonds","instance_count":10,"dag":[["a",[]],["b",["a"]],["c",["a"]],["d",["b","c"]],["e",["d"]],["f",["d"]],["g",["e","f"]],["h",["g"]],["i",["g"]],["j",["h","i"]],["k",["j"]],["l",["j"]],["m",["k","l"]],["n",["m"]],["o",["m"]],["p",["n","o"]],["q",["p"]],["r",["p"]],["s",["q","r"]],["t",["s"]],["u",["s"]],["v",["t","u"]],["w",["v"]],["x",["v"]],["y",["w","x"]],["z",["y"]]]}}"#;
+        let instance = vec![
+            r#"{"Instance":{"good":"c","bad":"t"}}"#.to_string(),
+            r#"{"Instance":{"good":"d","bad":"o"}}"#.to_string()];
+        let mut bad: HashSet<String> = HashSet::new();
+        bad.insert("r".to_string());
+        bad.insert("s".to_string());
+
+        let mut bad1: HashSet<String> = HashSet::new();
+        bad1.insert("m".to_string());
+        bad1.insert("l".to_string());
+        helper(
+            &"3011".to_string(),
+            vec![bad1, bad],
+            data.to_string(),
+            instance,
+            vec!["t".to_string(), "l".to_string()],
+            false,
+        );
+        Ok(())
+    }
 }
+
+//r#""#,
+// r#"{"Instance":{"good":"r","bad":"y"}}"#,
