@@ -7,6 +7,7 @@ pub use crate::json_types::*;
 use serde_json::Value;
 
 use std::collections::HashMap;
+use std::io;
 
 use ws::Result as ResultWS;
 use ws::{connect, CloseCode, Handler, Handshake, Message, Sender};
@@ -64,8 +65,12 @@ impl Handler for Client {
                     serde_json::from_value::<JsonMessageProblem>(data)
                         .unwrap()
                         .Repo;
+                
                 for commit in prob.dag {
                     self.parents_master.insert(commit.commit, commit.parents);
+                }
+                if prob.name.contains("tiny"){
+                    println!("{:?}", self.parents_master);    
                 }
                 println!("problem size: {}", self.parents_master.len());
 
@@ -87,6 +92,14 @@ impl Handler for Client {
                 println!("good removal: {:?}", self.parents.len());
                 remove_from_bad(&self.bad, &mut self.parents);
                 println!("problem reduced to:{:?}", self.parents.len());
+                // let mut input = String::new();
+                // match io::stdin().read_line(&mut input) {
+                //     Ok(n) => {
+                //         println!("{} bytes read", n);
+                //         println!("{}", input);
+                //     }
+                //     Err(error) => println!("error: {}", error),
+                // }
                 if self.parents.len() == 1 {
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                 } else {

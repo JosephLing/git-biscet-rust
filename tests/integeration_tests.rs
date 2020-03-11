@@ -75,6 +75,31 @@ mod integeration {
     }
 
     #[test]
+    fn trap_bad_commit() -> Result<(), serde_json::Error> {
+        // a (good) --> b --> c
+        //                     \
+        //                      d (bad)
+        //                      /
+        //         g --> f --> e
+        //          
+        // d has two parents and we only want to get the ones that have a good commit
+        // as their parent
+        let data = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["c2",[]],["c1",["c2"]],["g",["c2"]],["b",["g","c1"]],["c3",["c1"]]]}}"#;
+        let instance = vec![r#"{"Instance":{"good":"g","bad":"b"}}"#.to_string()];
+        let mut bad: HashSet<String> = HashSet::new();
+        bad.insert("c1".to_string());
+        helper(
+            &"2000".to_string(),
+            vec![bad; 1],
+            data.to_string(),
+            instance,
+            vec!["c1".to_string()],
+            false,
+        );
+        Ok(())
+    }
+
+    #[test]
     /// NOTE: leave me in as a test specailly if searching method changes
     fn single_instance_2() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c

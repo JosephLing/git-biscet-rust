@@ -223,6 +223,19 @@ mod removal {
     }
 
     #[test]
+    fn test_branching_rogue_commits() -> Result<(), serde_json::Error> {
+        // a >-- b --> c --> d
+        // v     |     \_ x
+        // |     ^
+        // \---> bb -- y
+        let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["x",["c"]],["y",["bb"]],["b",["a","bb"]],["bb",["a"]],["c",["b"]],["d",["c"]]]}}"#;
+        let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
+        let solution = helper(data, instance);
+        assert_eq!(solution, ["b", "bb", "c", "d"]);
+        Ok(())
+    }
+
+    #[test]
     fn test_branching_daimond() -> Result<(), serde_json::Error> {
         //
         //    b
@@ -313,6 +326,18 @@ mod counting {
         // as their parent
         let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["f",[]]]}}"#;
         let temp = counting_helper(data, "d".to_string());
+        assert_eq!(temp, Some("e".to_string()));
+        Ok(())
+    }
+
+    #[test]
+    fn test_trap() -> Result<(), serde_json::Error> {
+        // a -> b -> c -> d
+        //      \___ e
+        //       \___ f
+        //
+        let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["b",["c", "e", "f"]],["c",["d"]],["d",[]],["e",[]],["f",[]]]}}"#;
+        let temp = counting_helper(data, "b".to_string());
         assert_eq!(temp, Some("e".to_string()));
         Ok(())
     }
