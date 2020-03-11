@@ -9,6 +9,10 @@ use serde_json::Value;
 use std::collections::HashMap;
 use std::io;
 
+use std::fs::File;
+use std::io::prelude::*;
+
+
 use ws::Result as ResultWS;
 use ws::{connect, CloseCode, Handler, Handshake, Message, Sender};
 
@@ -28,25 +32,34 @@ fn send_solution(out: &Sender, msg: String) {
     _send_data(out, "Solution", msg)
 }
 
-fn pretty_print(parents: &HashMap<String, Vec<String>>) {
-    // println!("parents: {:?}", parents);
-    // for key in parents.keys() {
-        // println!("{}", key);
-    // }
-    // println!("-----");
-
-    // let mut debug: String = "digraph G {\n".to_string();
-    // // debug += &format!("node [shape = doublecircle, color=red]; {}\n", instance.bad);
-    // // debug += &format!("node [shape = doublecircle, color=green]; {}\n", instance.good);
-    // debug += "node [shape = circle, color=black];\n";
-    // for node in parents.keys() {
-    //     for parent in parents.get(node).unwrap() {
-    //         debug = debug + &format!("{} -> {}\n", node, parent);
-    //     }
-    // }
-    // debug = debug + &"}".to_string();
-    // println!("---------------------");
-    // println!("{}", debug);
+fn pretty_print(parents: &HashMap<String, Vec<String>>, name: &String, good: bool) {
+    println!("parents: {:?}", parents);
+    for key in parents.keys() {
+        println!("{}", key);
+    }
+    println!("-----");
+    let mut debug: String = "digraph G {\n".to_string();
+    if good{
+        debug += &format!("node [shape = doublecircle, color=green]; {}\n", name);
+    }else{
+        debug += &format!("node [shape = doublecircle, color=red]; {}\n", name);
+    }
+    debug += "node [shape = circle, color=black];\n";
+    for node in parents.keys() {
+        for parent in parents.get(node).unwrap() {
+            if parent.contains(parent){
+                debug = debug + &format!("{} -> {}\n", node, parent);
+            }else{
+                println!("cats: {} is a flaoting thing", parent);
+            }
+        }
+    }
+    debug = debug + &"}".to_string();
+    println!("---------------------");
+    println!("{}", debug);
+    let mut file = File::create(name.to_string() + ".dot").unwrap();
+    file.set_len(0).unwrap();
+    file.write_all(debug.as_bytes()).unwrap();
 }
 
 // Our Handler struct.
@@ -97,7 +110,7 @@ impl Handler for Client {
                     .unwrap()
                     .Instance;
                 println!("instance: {} {}", &instance.good, &instance.bad);
-                println!("instance: {:?} {:?}", self.parents_master.contains_key(&instance.good), self.parents_master.contains_key(&instance.bad));
+                // println!("instance: {:?} {:?}", self.parents_master.contains_key(&instance.good), self.parents_master.contains_key(&instance.bad));
                 self.bad = instance.bad;
                 self.questions = 0;
                 self.parents = self.parents_master.clone();
@@ -105,14 +118,8 @@ impl Handler for Client {
                 println!("good removal: {:?}", self.parents.len());
                 remove_from_bad(&self.bad, &mut self.parents);
                 println!("problem reduced to:{:?}", self.parents.len());
-                // let mut input = String::new();
-                // match io::stdin().read_line(&mut input) {
-                //     Ok(n) => {
-                //         println!("{} bytes read", n);
-                //         println!("{}", input);
-                //     }
-                //     Err(error) => println!("error: {}", error),
-                // }
+                pretty_print(&self.parents, &self.bad, false);
+                
                 if self.parents.len() == 1 {
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                 } else {
@@ -135,13 +142,12 @@ impl Handler for Client {
 
                     if answer.eq("bad") {
                         self.bad = self.question_commit.clone();
-                        pretty_print(&self.parents);
+                        pretty_print(&self.parents, &self.question_commit, false);
                         remove_from_bad(&self.question_commit, &mut self.parents);
                     } else {
-                        pretty_print(&self.parents);
+                        pretty_print(&self.parents, &self.question_commit, true);
                         remove_unecessary_good_commits(&self.question_commit, &mut self.parents);
                     }
-                    pretty_print(&self.parents);
 
                     if self.parents.len() == 1 {
                         send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());

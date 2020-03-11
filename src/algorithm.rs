@@ -54,6 +54,8 @@ pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>)
     for key in parents.keys() {
         parent_keys.insert(key.to_owned());
     }
+    // println!("to delete: {:?}", results);
+    // println!("from: {:?}", parent_keys);
     for removal in results.symmetric_difference(&parent_keys) {
         parents.remove(removal);
     }
@@ -154,6 +156,36 @@ mod removal {
     }
 
     #[test]
+    fn test_daimond() -> Result<(), serde_json::Error> {
+        // a (good) --> b --> c (bad)
+        let data = r#"{"Repo":{"name":"tiny-diamonds","instance_count":10,"dag":[["a",[]],["b",["a"]],["c",["a"]],["d",["b","c"]],["e",["d"]],["f",["d"]],["g",["e","f"]],["h",["g"]],["i",["g"]],["j",["h","i"]],["k",["j"]],["l",["j"]],["m",["k","l"]],["n",["m"]],["o",["m"]],["p",["n","o"]],["q",["p"]],["r",["p"]],["s",["q","r"]],["t",["s"]],["u",["s"]],["v",["t","u"]],["w",["v"]],["x",["v"]],["y",["w","x"]],["z",["y"]]]}}"#;
+        let instance = r#"{"Instance":{"good":"s","bad":"y"}}"#;
+        let solution = helper(data, instance);
+        assert_eq!(solution, ["t", "u", "v", "w", "x", "y"]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_daimond2() -> Result<(), serde_json::Error> {
+        // a (good) --> b --> c (bad)
+        let data = r#"{"Repo":{"name":"tiny-diamonds","instance_count":10,"dag":[["a",[]],["b",["a"]],["c",["a"]],["d",["b","c"]],["e",["d"]],["f",["d"]],["g",["e","f"]],["h",["g"]],["i",["g"]],["j",["h","i"]],["k",["j"]],["l",["j"]],["m",["k","l"]],["n",["m"]],["o",["m"]],["p",["n","o"]],["q",["p"]],["r",["p"]],["s",["q","r"]],["t",["s"]],["u",["s"]],["v",["t","u"]],["w",["v"]],["x",["v"]],["y",["w","x"]],["z",["y"]]]}}"#;
+        let instance = r#"{"Instance":{"good":"r","bad":"y"}}"#;
+        let solution = helper(data, instance);
+        assert_eq!(solution, ["q", "s", "t", "u", "v", "w", "x", "y"]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_daimond3() -> Result<(), serde_json::Error> {
+        // a (good) --> b --> c (bad)
+        let data = r#"{"Repo":{"name":"tiny-diamonds","instance_count":10,"dag":[["a",[]],["b",["a"]],["c",["a"]],["d",["b","c"]],["e",["d"]],["f",["d"]],["g",["e","f"]],["h",["g"]],["i",["g"]],["j",["h","i"]],["k",["j"]],["l",["j"]],["m",["k","l"]],["n",["m"]],["o",["m"]],["p",["n","o"]],["q",["p"]],["r",["p"]],["s",["q","r"]],["t",["s"]],["u",["s"]],["v",["t","u"]],["w",["v"]],["x",["v"]],["y",["w","x"]],["z",["y"]]]}}"#;
+        let instance = r#"{"Instance":{"good":"r","bad":"y"}}"#;
+        let solution = helper(data, instance);
+        assert_eq!(solution, ["q", "s", "t", "u", "v", "w", "x", "y"]);
+        Ok(())
+    }
+
+    #[test]
     fn test_linear_tree_value() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c (bad)
         let data = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
@@ -235,6 +267,9 @@ mod removal {
         Ok(())
     }
 
+
+    /// this dag is so nested it is a pointless test
+    #[ignore]
     #[test]
     fn test_tiny_complete() -> Result<(), serde_json::Error> {
         let data = r#"{"Repo":{"name":"tiny-complete","instance_count":10,"dag":[["a",[]],["b",["a"]],["c",["b","a"]],["d",["c","b","a"]],["e",["d","c","b","a"]],["f",["e","d","c","b","a"]],["g",["f","e","d","c","b","a"]],["h",["g","f","e","d","c","b","a"]],["i",["h","g","f","e","d","c","b","a"]],["j",["i","h","g","f","e","d","c","b","a"]],["k",["j","i","h","g","f","e","d","c","b","a"]],["l",["k","j","i","h","g","f","e","d","c","b","a"]],["m",["l","k","j","i","h","g","f","e","d","c","b","a"]],["n",["m","l","k","j","i","h","g","f","e","d","c","b","a"]],["o",["n","m","l","k","j","i","h","g","f","e","d","c","b","a"]],["p",["o","n","m","l","k","j","i","h","g","f","e","d","c","b","a"]],["q",["p","o","n","m","l","k","j","i","h","g","f","e","d","c","b","a"]],["r",["q","p","o","n","m","l","k","j","i","h","g","f","e","d","c","b","a"]],["s",["r","q","p","o","n","m","l","k","j","i","h","g","f","e","d","c","b","a"]],["t",["s","r","q","p","o","n","m","l","k","j","i","h","g","f","e","d","c","b","a"]],["u",["t","s","r","q","p","o","n","m","l","k","j","i","h","g","f","e","d","c","b","a"]],["v",["u","t","s","r","q","p","o","n","m","l","k","j","i","h","g","f","e","d","c","b","a"]],["w",["v","u","t","s","r","q","p","o","n","m","l","k","j","i","h","g","f","e","d","c","b","a"]],["x",["w","v","u","t","s","r","q","p","o","n","m","l","k","j","i","h","g","f","e","d","c","b","a"]],["y",["x","w","v","u","t","s","r","q","p","o","n","m","l","k","j","i","h","g","f","e","d","c","b","a"]],["z",["y","x","w","v","u","t","s","r","q","p","o","n","m","l","k","j","i","h","g","f","e","d","c","b","a"]]]}}"#;

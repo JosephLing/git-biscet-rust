@@ -191,24 +191,72 @@ mod integeration {
     }
 
     #[test]
-    fn tiny_problem() -> Result<(), serde_json::Error> {
+    fn tiny_diamonds() -> Result<(), serde_json::Error> {
+        let data = r#"{"Repo":{"name":"tiny-diamonds","instance_count":10,"dag":[["a",[]],["b",["a"]],["c",["a"]],["d",["b","c"]],["e",["d"]],["f",["d"]],["g",["e","f"]],["h",["g"]],["i",["g"]],["j",["h","i"]],["k",["j"]],["l",["j"]],["m",["k","l"]],["n",["m"]],["o",["m"]],["p",["n","o"]],["q",["p"]],["r",["p"]],["s",["q","r"]],["t",["s"]],["u",["s"]],["v",["t","u"]],["w",["v"]],["x",["v"]],["y",["w","x"]],["z",["y"]]]}}"#;
+        let instance = vec![
+            r#"{"Instance":{"good":"r","bad":"y"}}"#.to_string(),
+            ];
+        let mut bad: HashSet<String> = HashSet::new();
+        bad.insert("w".to_string());
+        bad.insert("t".to_string());
+        bad.insert("x".to_string());
+        bad.insert("v".to_string());
+        bad.insert("u".to_string());
+        bad.insert("s".to_string());
+        bad.insert("r".to_string());
+        bad.insert("q".to_string());
+
+        helper(
+            &"3021".to_string(),
+            vec![bad],
+            data.to_string(),
+            instance,
+            vec!["q".to_string()],
+            false,
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn tiny_diamonds2() -> Result<(), serde_json::Error> {
+        let data = r#"{"Repo":{"name":"tiny-diamonds","instance_count":10,"dag":[["a",[]],["b",["a"]],["c",["a"]],["d",["b","c"]],["e",["d"]],["f",["d"]],["g",["e","f"]],["h",["g"]],["i",["g"]],["j",["h","i"]],["k",["j"]],["l",["j"]],["m",["k","l"]],["n",["m"]],["o",["m"]],["p",["n","o"]],["q",["p"]],["r",["p"]],["s",["q","r"]],["t",["s"]],["u",["s"]],["v",["t","u"]],["w",["v"]],["x",["v"]],["y",["w","x"]],["z",["y"]]]}}"#;
+        let instance = vec![
+            r#"{"Instance":{"good":"r","bad":"y"}}"#.to_string(),
+            ];
+        let mut bad: HashSet<String> = HashSet::new();
+        bad.insert("w".to_string());
+        bad.insert("t".to_string());
+        bad.insert("x".to_string());
+        bad.insert("v".to_string());
+        
+        helper(
+            &"3022".to_string(),
+            vec![bad],
+            data.to_string(),
+            instance,
+            vec!["t".to_string()],
+            false,
+        );
+        Ok(())
+    }
+
+
+    #[test]
+    fn tiny_diamonds3() -> Result<(), serde_json::Error> {
         let data = r#"{"Repo":{"name":"tiny-diamonds","instance_count":10,"dag":[["a",[]],["b",["a"]],["c",["a"]],["d",["b","c"]],["e",["d"]],["f",["d"]],["g",["e","f"]],["h",["g"]],["i",["g"]],["j",["h","i"]],["k",["j"]],["l",["j"]],["m",["k","l"]],["n",["m"]],["o",["m"]],["p",["n","o"]],["q",["p"]],["r",["p"]],["s",["q","r"]],["t",["s"]],["u",["s"]],["v",["t","u"]],["w",["v"]],["x",["v"]],["y",["w","x"]],["z",["y"]]]}}"#;
         let instance = vec![
             r#"{"Instance":{"good":"c","bad":"t"}}"#.to_string(),
-            r#"{"Instance":{"good":"d","bad":"o"}}"#.to_string()];
+            ];
         let mut bad: HashSet<String> = HashSet::new();
-        bad.insert("r".to_string());
         bad.insert("s".to_string());
-
-        let mut bad1: HashSet<String> = HashSet::new();
-        bad1.insert("m".to_string());
-        bad1.insert("l".to_string());
+        bad.insert("r".to_string());
+        
         helper(
-            &"3011".to_string(),
-            vec![bad1, bad],
+            &"3023".to_string(),
+            vec![bad],
             data.to_string(),
             instance,
-            vec!["t".to_string(), "l".to_string()],
+            vec!["t".to_string()],
             false,
         );
         Ok(())

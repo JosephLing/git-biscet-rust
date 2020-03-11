@@ -1,6 +1,8 @@
 use gitbisectrust::json_types::*;
 use std::fs::File;
 use std::io::prelude::*;
+
+
 pub fn vis(data: &str, data2: &str, name: &str) {
     let problem = serde_json::from_str::<JsonMessageProblem>(data).unwrap();
     let instance = serde_json::from_str::<JsonInstanceGoodBad>(data2).unwrap().Instance;
@@ -17,5 +19,4 @@ pub fn vis(data: &str, data2: &str, name: &str) {
     let mut file = File::create(name).unwrap();
     file.set_len(0).unwrap();
     file.write_all(debug.as_bytes()).unwrap();
-    println!("{}", debug.to_string());
 }
