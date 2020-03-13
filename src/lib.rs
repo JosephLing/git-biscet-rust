@@ -19,7 +19,7 @@ use ws::{connect, CloseCode, Handler, Handshake, Message, Sender};
 // could use a macro or something
 // (https://hermanradtke.com/2015/05/03/string-vs-str-in-rust-functions.html)
 fn _send_data(out: &Sender, header: &str, msg: String) -> () {
-    println!(">>> {} : {}", header, msg);
+    // println!(">>> {} : {}", header, msg);
     out.send(serde_json::json!({ header: msg }).to_string());
 }
 
@@ -69,8 +69,14 @@ struct Client {
     questions: i32,
     question_commit: String,
     bad: String,
+    name: String,
+    instance_count: i32,
     parents: HashMap<String, Vec<String>>,
     parents_master: HashMap<String, Vec<String>>,
+}
+
+fn debug(a: &Client, msg: &str) {
+    println!("[{}][{}] {}", a.name, a.instance_count, msg);
 }
 
 impl Handler for Client {
@@ -82,18 +88,16 @@ impl Handler for Client {
     fn on_message(&mut self, msg: Message) -> ResultWS<()> {
         if let Ok(data) = serde_json::from_str::<Value>(msg.as_text().unwrap()) {
             if data["Repo"] != Value::Null {
+                self.instance_count = 0;
                 println!("been given another problem");
                 self.parents_master = HashMap::new();
                 let prob: JsonProblemDefinition =
                     serde_json::from_value::<JsonMessageProblem>(data)
                         .unwrap()
                         .Repo;
-                println!("{}", prob.name);
+                self.name = prob.name;
                 for commit in prob.dag {
                     self.parents_master.insert(commit.commit, commit.parents);
-                }
-                if prob.name.contains("tiny") {
-                    println!("{:?}", self.parents_master);
                 }
                 println!("problem size: {}", self.parents_master.len());
             } else if data["Score"] != Value::Null {
@@ -103,21 +107,25 @@ impl Handler for Client {
                 );
                 self.out.close(CloseCode::Normal);
             } else if data["Instance"] != Value::Null {
-                println!("instance");
+                self.instance_count += 1;
+                debug(&self, "new instance");
                 let instance = serde_json::from_value::<JsonInstanceGoodBad>(data.clone())
                     .unwrap()
                     .Instance;
                 self.questions = 0;
                 self.question_commit = "".to_owned();
-                println!("instance: {} {}", &instance.good, &instance.bad);
+                debug(
+                    &self,
+                    &format!("instance: {} {}", &instance.good, &instance.bad),
+                );
                 // println!("instance: {:?} {:?}", self.parents_master.contains_key(&instance.good), self.parents_master.contains_key(&instance.bad));
                 self.bad = instance.bad;
                 self.questions = 0;
                 self.parents = self.parents_master.clone();
                 remove_unecessary_good_commits(&instance.good, &mut self.parents);
-                println!("good removal: {:?}", self.parents.len());
+                // println!("good removal: {:?}", self.parents.len());
                 remove_from_bad(&self.bad, &mut self.parents);
-                println!("problem reduced to:{:?}", self.parents.len());
+                // println!("problem reduced to:{:?}", self.parents.len());
                 pretty_print(&self.parents, &self.bad, false);
                 if self.parents.len() == 1 {
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
@@ -131,11 +139,11 @@ impl Handler for Client {
                 self.out.send(serde_json::json!("GiveUp").to_string());
             } else if data["Answer"] != Value::Null {
                 if self.parents.len() == 1 {
-                    println!("{:?}", self.parents.keys());
+                    debug(&self, &format!("solution: {:?}", self.parents.keys()));
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                 } else {
                     let answer: String = serde_json::from_value::<JsonAnswer>(data).unwrap().Answer;
-                    println!("answer: {} {}", self.question_commit, answer);
+                    debug(&self, &format!("answer: {} {}", self.question_commit, answer));
 
                     if answer.eq("bad") {
                         self.bad = self.question_commit.clone();
@@ -150,8 +158,10 @@ impl Handler for Client {
                         send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                     } else {
                         self.questions += 1;
-                        println!("question {}", self.questions);
                         self.question_commit = get_next_guess(&self.bad, &self.parents).unwrap();
+                        
+                        debug(&self, &format!("question {} {}", self.questions, self.question_commit));
+                        
                         send_question(&self.out, self.question_commit.to_string());
                     }
                 }
@@ -182,6 +192,8 @@ pub fn run(address: String) {
         out: out,
         questions: 0,
         bad: "".to_string(),
+        name: "".to_string(),
+        instance_count: 0,
         question_commit: "".to_string(),
         parents: HashMap::new(),
         parents_master: HashMap::new(),

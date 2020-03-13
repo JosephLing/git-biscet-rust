@@ -59,7 +59,6 @@ pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>)
     for removal in results.symmetric_difference(&parent_keys) {
         parents.remove(removal);
     }
-    println!("deleted");
 }
 
 /// it does a binary search by doing a breadth first searh through tree
