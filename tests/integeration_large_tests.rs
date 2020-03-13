@@ -137,6 +137,7 @@ mod bigJsonExamples {
     // of the size of 249 things
     // that means they are probably the same question
     #[test]
+    #[ignore]
     fn test_test() -> Result<()> {
         // 249
         helper_loader(&"test_test".to_string(), "36".to_string());
@@ -144,6 +145,7 @@ mod bigJsonExamples {
     }
 
     #[test]
+    #[ignore]
     // need to implement higher timeouts for these and
     // it's expected that these fails
     fn test_linux() -> Result<()> {

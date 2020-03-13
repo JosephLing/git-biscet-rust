@@ -54,8 +54,8 @@ pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>)
     for key in parents.keys() {
         parent_keys.insert(key.to_owned());
     }
-    // println!("to delete: {:?}", results);
-    // println!("from: {:?}", parent_keys);
+    // println!("results: {:?}", results);
+    // println!("parent: {:?}", parent_keys);
     for removal in results.symmetric_difference(&parent_keys) {
         parents.remove(removal);
     }
@@ -66,7 +66,7 @@ pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>)
 /// and keep on going like that. Therefore even if we are going half way it might not
 /// actually be fully half way down the tree.
 pub fn get_next_guess(bad: &String, parents: &HashMap<String, Vec<String>>) -> Option<String> {
-    println!("get_next_guess {} {}", bad, parents.len());
+    // println!("get_next_guess {} {}", bad, parents.len());
     let half_way = (parents.len() as f64 / 2 as f64).ceil() as usize;
     let mut count = 1;
     let mut queue: VecDeque<String> = VecDeque::new();
@@ -105,6 +105,28 @@ pub fn get_next_guess(bad: &String, parents: &HashMap<String, Vec<String>>) -> O
     }
     return None;
 }
+
+#[cfg(test)]
+mod removal_raw {
+    use super::*;
+
+    #[test]
+    fn test_bad_removal()  {
+        let parents : &mut HashMap<String, Vec<String>> = &mut HashMap::new();
+        parents.insert("a".to_string(), vec!["b".to_string(), "c".to_string()]);
+        parents.insert("b".to_string(), vec!["d".to_string(), "e".to_string()]);
+        remove_from_bad(&"b".to_string(), parents);
+        let mut values: Vec<String> = Vec::new();
+        for v in parents.keys() {
+            values.push(v.into());
+        }
+        values.sort();
+        assert_eq!(values, vec!["b"]);
+    }
+
+
+}
+
 
 #[cfg(test)]
 mod removal {

@@ -32,33 +32,33 @@ fn send_solution(out: &Sender, msg: String) {
 }
 
 fn pretty_print(parents: &HashMap<String, Vec<String>>, name: &String, good: bool) {
-    // println!("parents: {:?}", parents);
-    // for key in parents.keys() {
-    //     println!("{}", key);
-    // }
-    // println!("-----");
-    // let mut debug: String = "digraph G {\n".to_string();
-    // if good{
-    //     debug += &format!("node [shape = doublecircle, color=green]; {}\n", name);
-    // }else{
-    //     debug += &format!("node [shape = doublecircle, color=red]; {}\n", name);
-    // }
-    // debug += "node [shape = circle, color=black];\n";
-    // for node in parents.keys() {
-    //     for parent in parents.get(node).unwrap() {
-    //         if parent.contains(parent){
-    //             debug = debug + &format!("{} -> {}\n", node, parent);
-    //         }else{
-    //             println!("cats: {} is a flaoting thing", parent);
-    //         }
-    //     }
-    // }
-    // debug = debug + &"}".to_string();
-    // println!("---------------------");
-    // println!("{}", debug);
-    // let mut file = File::create(name.to_string() + ".dot").unwrap();
-    // file.set_len(0).unwrap();
-    // file.write_all(debug.as_bytes()).unwrap();
+        // if parents.len() < 10 {
+        //     println!("parents: {:?}", parents);
+        // }
+        // for key in parents.keys() {
+        //     println!("{}", key);
+        // }
+        // println!("-----");
+        // let mut debug: String = "digraph G {\n".to_string();
+        // if good {
+        //     debug += &format!("node [shape = doublecircle, color=green]; {}\n", name);
+        // } else {
+        //     debug += &format!("node [shape = doublecircle, color=red]; {}\n", name);
+        // }
+        // debug += "node [shape = circle, color=black];\n";
+        // for node in parents.keys() {
+        //     for parent in parents.get(node).unwrap() {
+        //         if parents.contains_key(parent) {
+        //             debug = debug + &format!("{} -> {}\n", node, parent);
+        //         } 
+        //     }
+        // }
+        // debug = debug + &"}".to_string();
+        // println!("---------------------");
+        // println!("{}", debug);
+        // let mut file = File::create(name.to_string() + ".dot").unwrap();
+        // file.set_len(0).unwrap();
+        // file.write_all(debug.as_bytes()).unwrap();
 }
 
 // Our Handler struct.
@@ -76,7 +76,15 @@ struct Client {
 }
 
 fn debug(a: &Client, msg: &str) {
-    println!("[{}][{}] {}", a.name, a.instance_count, msg);
+    if true{
+        println!(
+            "[{}][{}][{}] {}",
+            a.name,
+            a.instance_count,
+            a.parents.len(),
+            msg
+        );
+    }
 }
 
 impl Handler for Client {
@@ -89,7 +97,7 @@ impl Handler for Client {
         if let Ok(data) = serde_json::from_str::<Value>(msg.as_text().unwrap()) {
             if data["Repo"] != Value::Null {
                 self.instance_count = 0;
-                println!("been given another problem");
+                debug(self, "------------------------");
                 self.parents_master = HashMap::new();
                 let prob: JsonProblemDefinition =
                     serde_json::from_value::<JsonMessageProblem>(data)
@@ -99,7 +107,6 @@ impl Handler for Client {
                 for commit in prob.dag {
                     self.parents_master.insert(commit.commit, commit.parents);
                 }
-                println!("problem size: {}", self.parents_master.len());
             } else if data["Score"] != Value::Null {
                 println!(
                     "score: {}",
@@ -107,6 +114,15 @@ impl Handler for Client {
                 );
                 self.out.close(CloseCode::Normal);
             } else if data["Instance"] != Value::Null {
+                // let mut input = String::new();
+                // match io::stdin().read_line(&mut input) {
+                //     Ok(n) => {
+                //         println!("{} bytes read", n);
+                //         println!("{}", input);
+                //     }
+                //     Err(error) => println!("error: {}", error),
+                // }
+
                 self.instance_count += 1;
                 debug(&self, "new instance");
                 let instance = serde_json::from_value::<JsonInstanceGoodBad>(data.clone())
@@ -118,6 +134,25 @@ impl Handler for Client {
                     &self,
                     &format!("instance: {} {}", &instance.good, &instance.bad),
                 );
+                {
+                    // let mut debug: String = "digraph G {\n".to_string();
+                    // debug += &format!("node [shape = doublecircle, color=blue]; {}\n", instance.bad);
+                    // debug += &format!("node [shape = doublecircle, color=green]; {}\n", instance.good);
+    
+                    // debug += "node [shape = circle, color=black];\n";
+                    // for node in self.parents.keys() {
+                    //     for parent in self.parents.get(node).unwrap() {
+                    //         if self.parents.contains_key(parent) {
+                    //             debug = debug + &format!("{} -> {}\n", node, parent);
+                    //         }
+                    //     }
+                    // }
+                    // debug = debug + &"}".to_string();
+                    // let mut file = File::create("main.dot").unwrap();
+                    // file.set_len(0).unwrap();
+                    // file.write_all(debug.as_bytes()).unwrap();
+                }
+
                 // println!("instance: {:?} {:?}", self.parents_master.contains_key(&instance.good), self.parents_master.contains_key(&instance.bad));
                 self.bad = instance.bad;
                 self.questions = 0;
@@ -128,13 +163,18 @@ impl Handler for Client {
                 // println!("problem reduced to:{:?}", self.parents.len());
                 pretty_print(&self.parents, &self.bad, false);
                 if self.parents.len() == 1 {
+                    debug(&self, &format!("solution: {:?}", self.parents.keys()));
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                 } else {
                     self.question_commit = get_next_guess(&self.bad, &self.parents).unwrap();
+                    debug(
+                        &self,
+                        &format!("question {} {}", self.questions, self.question_commit),
+                    );
                     send_question(&self.out, self.question_commit.to_string());
                 }
             } else if self.questions >= 29 {
-                println!("GIVING UP - moving onto the next question");
+                debug(self, "GIVING UP");
                 //TODO: check what the limits are here!? and to see if we can submit a solution maybe??
                 self.out.send(serde_json::json!("GiveUp").to_string());
             } else if data["Answer"] != Value::Null {
@@ -143,25 +183,33 @@ impl Handler for Client {
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                 } else {
                     let answer: String = serde_json::from_value::<JsonAnswer>(data).unwrap().Answer;
-                    debug(&self, &format!("answer: {} {}", self.question_commit, answer));
+                    debug(
+                        &self,
+                        &format!("answer: {}\t{}", answer, self.question_commit),
+                    );
 
                     if answer.eq("bad") {
                         self.bad = self.question_commit.clone();
                         pretty_print(&self.parents, &self.question_commit, false);
                         remove_from_bad(&self.question_commit, &mut self.parents);
+                        pretty_print(&self.parents, &self.bad, false);
                     } else {
                         pretty_print(&self.parents, &self.question_commit, true);
                         remove_unecessary_good_commits(&self.question_commit, &mut self.parents);
+                        pretty_print(&self.parents, &self.bad, false);
                     }
 
                     if self.parents.len() == 1 {
+                        debug(&self, &format!("solution: {:?}", self.parents.keys()));
                         send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                     } else {
                         self.questions += 1;
                         self.question_commit = get_next_guess(&self.bad, &self.parents).unwrap();
-                        
-                        debug(&self, &format!("question {} {}", self.questions, self.question_commit));
-                        
+
+                        debug(
+                            &self,
+                            &format!("question {} {}", self.questions, self.question_commit),
+                        );
                         send_question(&self.out, self.question_commit.to_string());
                     }
                 }
