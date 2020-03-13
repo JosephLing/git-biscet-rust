@@ -66,9 +66,9 @@ impl Handler for Server {
                 }else if data["Question"] != Value::Null {
                     // println!("question: {} {} {:?}", self.repo_index, self.instance_index, self.bad[self.repo_index][self.instance_index]);
                     if self.bad[self.repo_index][self.instance_index].contains(data["Question"].as_str().unwrap()){
-                        self.out.send(serde_json::json!({"Answer": "bad"}).to_string());
+                        self.out.send(serde_json::json!({"Answer": "Bad"}).to_string());
                     }else{
-                        self.out.send(serde_json::json!({"Answer": "good"}).to_string());
+                        self.out.send(serde_json::json!({"Answer": "Good"}).to_string());
                     }
                 }else{
                     assert_eq!(serde_json::json!("GiveUp").to_string(),text);

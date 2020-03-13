@@ -15,6 +15,26 @@ use std::io::prelude::*;
 use ws::Result as ResultWS;
 use ws::{connect, CloseCode, Handler, Handshake, Message, Sender};
 
+// {
+//     // let mut debug: String = "digraph G {\n".to_string();
+//     // debug += &format!("node [shape = doublecircle, color=blue]; {}\n", instance.bad);
+//     // debug += &format!("node [shape = doublecircle, color=green]; {}\n", instance.good);
+
+//     // debug += "node [shape = circle, color=black];\n";
+//     // for node in self.parents.keys() {
+//     //     for parent in self.parents.get(node).unwrap() {
+//     //         if self.parents.contains_key(parent) {
+//     //             debug = debug + &format!("{} -> {}\n", node, parent);
+//     //         }
+//     //     }
+//     // }
+//     // debug = debug + &"}".to_string();
+//     // let mut file = File::create("main.dot").unwrap();
+//     // file.set_len(0).unwrap();
+//     // file.write_all(debug.as_bytes()).unwrap();
+// }
+
+
 // note: look into a better way potentailly to do the header...
 // could use a macro or something
 // (https://hermanradtke.com/2015/05/03/string-vs-str-in-rust-functions.html)
@@ -39,6 +59,8 @@ fn pretty_print(parents: &HashMap<String, Vec<String>>, name: &String, good: boo
         //     println!("{}", key);
         // }
         // println!("-----");
+        // println!("parents: {:?}", parents);
+        // println!("keys: {:?}", parents.keys());
         // let mut debug: String = "digraph G {\n".to_string();
         // if good {
         //     debug += &format!("node [shape = doublecircle, color=green]; {}\n", name);
@@ -50,7 +72,9 @@ fn pretty_print(parents: &HashMap<String, Vec<String>>, name: &String, good: boo
         //     for parent in parents.get(node).unwrap() {
         //         if parents.contains_key(parent) {
         //             debug = debug + &format!("{} -> {}\n", node, parent);
-        //         } 
+        //         }else{
+        //             println!("{}", parent);
+        //         }
         //     }
         // }
         // debug = debug + &"}".to_string();
@@ -78,10 +102,12 @@ struct Client {
 fn debug(a: &Client, msg: &str) {
     if true{
         println!(
-            "[client][{}][{}][{}] {}",
+            "[client][{}][{}][{}][bad {}][qc {}] {}",
             a.name,
             a.instance_count,
             a.parents.len(),
+            a.bad,
+            a.question_commit,
             msg
         );
     }
@@ -114,15 +140,6 @@ impl Handler for Client {
                 );
                 self.out.close(CloseCode::Normal);
             } else if data["Instance"] != Value::Null {
-                // let mut input = String::new();
-                // match io::stdin().read_line(&mut input) {
-                //     Ok(n) => {
-                //         println!("{} bytes read", n);
-                //         println!("{}", input);
-                //     }
-                //     Err(error) => println!("error: {}", error),
-                // }
-
                 self.instance_count += 1;
                 debug(&self, "new instance");
                 let instance = serde_json::from_value::<JsonInstanceGoodBad>(data.clone())
@@ -137,24 +154,7 @@ impl Handler for Client {
                     &self,
                     &format!("instance: {} {}", &instance.good, &instance.bad),
                 );
-                {
-                    // let mut debug: String = "digraph G {\n".to_string();
-                    // debug += &format!("node [shape = doublecircle, color=blue]; {}\n", instance.bad);
-                    // debug += &format!("node [shape = doublecircle, color=green]; {}\n", instance.good);
-    
-                    // debug += "node [shape = circle, color=black];\n";
-                    // for node in self.parents.keys() {
-                    //     for parent in self.parents.get(node).unwrap() {
-                    //         if self.parents.contains_key(parent) {
-                    //             debug = debug + &format!("{} -> {}\n", node, parent);
-                    //         }
-                    //     }
-                    // }
-                    // debug = debug + &"}".to_string();
-                    // let mut file = File::create("main.dot").unwrap();
-                    // file.set_len(0).unwrap();
-                    // file.write_all(debug.as_bytes()).unwrap();
-                }
+                
 
                 self.bad = instance.bad;
                 self.parents = self.parents_master.clone();
@@ -189,7 +189,7 @@ impl Handler for Client {
                         &format!("answer: {}\t{}", answer, self.question_commit),
                     );
 
-                    if answer.eq("bad") {
+                    if answer.eq("Bad") {
                         self.bad = self.question_commit.clone();
                         pretty_print(&self.parents, &self.question_commit, false);
                         remove_from_bad(&self.question_commit, &mut self.parents);
