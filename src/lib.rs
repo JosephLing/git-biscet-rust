@@ -12,7 +12,6 @@ use std::io;
 use std::fs::File;
 use std::io::prelude::*;
 
-
 use ws::Result as ResultWS;
 use ws::{connect, CloseCode, Handler, Handshake, Message, Sender};
 
@@ -85,8 +84,6 @@ impl Handler for Client {
             if data["Repo"] != Value::Null {
                 println!("been given another problem");
                 self.parents_master = HashMap::new();
-                self.questions = 0;
-                self.question_commit = "".to_owned();
                 let prob: JsonProblemDefinition =
                     serde_json::from_value::<JsonMessageProblem>(data)
                         .unwrap()
@@ -95,20 +92,23 @@ impl Handler for Client {
                 for commit in prob.dag {
                     self.parents_master.insert(commit.commit, commit.parents);
                 }
-                if prob.name.contains("tiny"){
-                    println!("{:?}", self.parents_master);    
+                if prob.name.contains("tiny") {
+                    println!("{:?}", self.parents_master);
                 }
                 println!("problem size: {}", self.parents_master.len());
-
             } else if data["Score"] != Value::Null {
-                println!("score: {}", serde_json::from_value::<JsonScore>(data).unwrap());
+                println!(
+                    "score: {}",
+                    serde_json::from_value::<JsonScore>(data).unwrap()
+                );
                 self.out.close(CloseCode::Normal);
-
             } else if data["Instance"] != Value::Null {
                 println!("instance");
                 let instance = serde_json::from_value::<JsonInstanceGoodBad>(data.clone())
                     .unwrap()
                     .Instance;
+                self.questions = 0;
+                self.question_commit = "".to_owned();
                 println!("instance: {} {}", &instance.good, &instance.bad);
                 // println!("instance: {:?} {:?}", self.parents_master.contains_key(&instance.good), self.parents_master.contains_key(&instance.bad));
                 self.bad = instance.bad;
@@ -119,19 +119,16 @@ impl Handler for Client {
                 remove_from_bad(&self.bad, &mut self.parents);
                 println!("problem reduced to:{:?}", self.parents.len());
                 pretty_print(&self.parents, &self.bad, false);
-                
                 if self.parents.len() == 1 {
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                 } else {
                     self.question_commit = get_next_guess(&self.bad, &self.parents).unwrap();
                     send_question(&self.out, self.question_commit.to_string());
                 }
-
             } else if self.questions >= 29 {
                 println!("GIVING UP - moving onto the next question");
                 //TODO: check what the limits are here!? and to see if we can submit a solution maybe??
                 self.out.send(serde_json::json!("GiveUp").to_string());
-
             } else if data["Answer"] != Value::Null {
                 if self.parents.len() == 1 {
                     println!("{:?}", self.parents.keys());
