@@ -152,4 +152,10 @@ mod bigJsonExamples {
         Ok(())
 
     }
+
+    #[test]
+    fn test_lewis() -> Result<()> {
+        helper_loader(&"lewis".to_string(), "38".to_string());
+        Ok(())
+    }
 }
