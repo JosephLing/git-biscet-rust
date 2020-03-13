@@ -78,7 +78,7 @@ struct Client {
 fn debug(a: &Client, msg: &str) {
     if true{
         println!(
-            "[{}][{}][{}] {}",
+            "[client][{}][{}][{}] {}",
             a.name,
             a.instance_count,
             a.parents.len(),
@@ -130,6 +130,9 @@ impl Handler for Client {
                     .Instance;
                 self.questions = 0;
                 self.question_commit = "".to_owned();
+                self.bad = "".to_string();
+
+
                 debug(
                     &self,
                     &format!("instance: {} {}", &instance.good, &instance.bad),
@@ -153,14 +156,12 @@ impl Handler for Client {
                     // file.write_all(debug.as_bytes()).unwrap();
                 }
 
-                // println!("instance: {:?} {:?}", self.parents_master.contains_key(&instance.good), self.parents_master.contains_key(&instance.bad));
                 self.bad = instance.bad;
-                self.questions = 0;
                 self.parents = self.parents_master.clone();
+                debug(&self, "init");
                 remove_unecessary_good_commits(&instance.good, &mut self.parents);
-                // println!("good removal: {:?}", self.parents.len());
+                debug(&self, "removed goods");
                 remove_from_bad(&self.bad, &mut self.parents);
-                // println!("problem reduced to:{:?}", self.parents.len());
                 pretty_print(&self.parents, &self.bad, false);
                 if self.parents.len() == 1 {
                     debug(&self, &format!("solution: {:?}", self.parents.keys()));
