@@ -95,6 +95,7 @@ struct Client {
     bad: String,
     name: String,
     instance_count: i32,
+    global_question_count: i32,
     parents: HashMap<String, Vec<String>>,
     parents_master: HashMap<String, Vec<String>>,
 }
@@ -102,7 +103,8 @@ struct Client {
 fn debug(a: &Client, msg: &str) {
     if true{
         println!(
-            "[client][{}][{}][{}][bad {}][qc {}] {}",
+            "[{}][{}][{}][{}][bad {}][qc {}] {}",
+            a.global_question_count,
             a.name,
             a.instance_count,
             a.parents.len(),
@@ -141,6 +143,7 @@ impl Handler for Client {
                 self.out.close(CloseCode::Normal);
             } else if data["Instance"] != Value::Null {
                 self.instance_count += 1;
+                self.global_question_count += 1;
                 debug(&self, "new instance");
                 let instance = serde_json::from_value::<JsonInstanceGoodBad>(data.clone())
                     .unwrap()
@@ -168,10 +171,10 @@ impl Handler for Client {
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                 } else {
                     self.question_commit = get_next_guess(&self.bad, &self.parents).unwrap();
-                    debug(
-                        &self,
-                        &format!("question {} {}", self.questions, self.question_commit),
-                    );
+                  //  debug(
+                  //      &self,
+                  //      &format!("question {} {}", self.questions, self.question_commit),
+                  //  );
                     send_question(&self.out, self.question_commit.to_string());
                 }
             } else if self.questions >= 29 {
@@ -184,20 +187,20 @@ impl Handler for Client {
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                 } else {
                     let answer: String = serde_json::from_value::<JsonAnswer>(data).unwrap().Answer;
-                    debug(
-                        &self,
-                        &format!("answer: {}\t{}", answer, self.question_commit),
-                    );
+                //    debug(
+                  //      &self,
+                    //    &format!("answer: {}\t{}", answer, self.question_commit),
+                  //  );
 
                     if answer.eq("Bad") {
                         self.bad = self.question_commit.clone();
-                        pretty_print(&self.parents, &self.question_commit, false);
+    //                    pretty_print(&self.parents, &self.question_commit, false);
                         remove_from_bad(&self.question_commit, &mut self.parents);
-                        pretty_print(&self.parents, &self.bad, false);
+      //                  pretty_print(&self.parents, &self.bad, false);
                     } else {
-                        pretty_print(&self.parents, &self.question_commit, true);
+//                        pretty_print(&self.parents, &self.question_commit, true);
                         remove_unecessary_good_commits(&self.question_commit, &mut self.parents);
-                        pretty_print(&self.parents, &self.bad, false);
+  //                      pretty_print(&self.parents, &self.bad, false);
                     }
 
                     if self.parents.len() == 1 {
@@ -207,10 +210,10 @@ impl Handler for Client {
                         self.questions += 1;
                         self.question_commit = get_next_guess(&self.bad, &self.parents).unwrap();
 
-                        debug(
-                            &self,
-                            &format!("question {} {}", self.questions, self.question_commit),
-                        );
+        //                debug(
+          //                  &self,
+            //                &format!("question {} {}", self.questions, self.question_commit),
+              //          );
                         send_question(&self.out, self.question_commit.to_string());
                     }
                 }
@@ -245,6 +248,7 @@ pub fn run(address: String) {
         instance_count: 0,
         question_commit: "".to_string(),
         parents: HashMap::new(),
+        global_question_count: 0,
         parents_master: HashMap::new(),
     })
     .unwrap();
