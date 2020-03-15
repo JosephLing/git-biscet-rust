@@ -51,7 +51,7 @@ fn send_solution(out: &Sender, msg: String) {
     _send_data(out, "Solution", msg)
 }
 
-fn pretty_print(parents: &HashMap<String, Vec<String>>, name: &String, good: bool) {
+fn pretty_print(parents: &HashMap<i32, Vec<i32>>, name: &i32, good: bool) {
         // if parents.len() < 10 {
         //     println!("parents: {:?}", parents);
         // }
@@ -91,13 +91,15 @@ fn pretty_print(parents: &HashMap<String, Vec<String>>, name: &String, good: boo
 struct Client {
     out: Sender,
     questions: i32,
-    question_commit: String,
-    bad: String,
+    question_commit: i32,
+    bad: i32,
     name: String,
     instance_count: i32,
     global_question_count: i32,
-    parents: HashMap<String, Vec<String>>,
-    parents_master: HashMap<String, Vec<String>>,
+    parents: HashMap<i32, Vec<i32>>,
+    parents_master_map: HashMap<String, i32>,
+    parents_master_map_rev: HashMap<i32, String>,
+    parents_master: HashMap<i32, Vec<i32>>,
 }
 
 fn debug(a: &Client, msg: &str) {
@@ -127,14 +129,25 @@ impl Handler for Client {
                 self.instance_count = 0;
                 debug(self, "------------------------");
                 self.parents_master = HashMap::new();
+                self.parents_master_map = HashMap::new();
                 let prob: JsonProblemDefinition =
                     serde_json::from_value::<JsonMessageProblem>(data)
                         .unwrap()
                         .Repo;
                 self.name = prob.name;
+                let mut c : i32 = 0;
+                for commit in &prob.dag {
+                    self.parents_master_map.insert(commit.commit.to_owned(), c);
+                    self.parents_master_map_rev.insert(c, commit.commit.to_owned());
+                    c += 1;
+                };
+
                 for commit in prob.dag {
-                    self.parents_master.insert(commit.commit, commit.parents);
+                    let mut temp : Vec<i32> = Vec::new();
+                    temp.extend(commit.parents.into_iter().map(|foo| self.parents_master_map.get(&foo).unwrap()));
+                    self.parents_master.insert(self.parents_master_map.get(&commit.commit).unwrap().to_owned(), temp);
                 }
+
             } else if data["Score"] != Value::Null {
                 println!(
                     "score: {}",
@@ -149,8 +162,8 @@ impl Handler for Client {
                     .unwrap()
                     .Instance;
                 self.questions = 0;
-                self.question_commit = "".to_owned();
-                self.bad = "".to_string();
+                self.question_commit = 0;
+                self.bad = 0;
 
 
                 debug(
@@ -159,23 +172,23 @@ impl Handler for Client {
                 );
                 
 
-                self.bad = instance.bad;
+                self.bad = self.parents_master_map.get(&instance.bad).unwrap().to_owned();
                 self.parents = self.parents_master.clone();
                 debug(&self, "init");
-                remove_unecessary_good_commits(&instance.good, &mut self.parents);
+                remove_unecessary_good_commits(self.parents_master_map.get(&instance.good).unwrap(), &mut self.parents);
                 debug(&self, "removed goods");
                 remove_from_bad(&self.bad, &mut self.parents);
                 pretty_print(&self.parents, &self.bad, false);
                 if self.parents.len() == 1 {
                     debug(&self, &format!("solution: {:?}", self.parents.keys()));
-                    send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
+                    send_solution(&self.out, self.parents_master_map_rev.get(self.parents.keys().last().unwrap()).unwrap().to_owned());
                 } else {
                     self.question_commit = get_next_guess(&self.bad, &self.parents).unwrap();
-                  //  debug(
-                  //      &self,
-                  //      &format!("question {} {}", self.questions, self.question_commit),
-                  //  );
-                    send_question(&self.out, self.question_commit.to_string());
+                   debug(
+                       &self,
+                       &format!("question {} {}", self.questions, self.question_commit),
+                   );
+                  send_question(&self.out, self.parents_master_map_rev.get(&self.question_commit).unwrap().to_owned());
                 }
             } else if self.questions >= 29 {
                 debug(self, "GIVING UP");
@@ -184,13 +197,13 @@ impl Handler for Client {
             } else if data["Answer"] != Value::Null {
                 if self.parents.len() == 1 {
                     debug(&self, &format!("solution: {:?}", self.parents.keys()));
-                    send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
+                    send_solution(&self.out, self.parents_master_map_rev.get(self.parents.keys().last().unwrap()).unwrap().to_owned());
                 } else {
                     let answer: String = serde_json::from_value::<JsonAnswer>(data).unwrap().Answer;
-                //    debug(
-                  //      &self,
-                    //    &format!("answer: {}\t{}", answer, self.question_commit),
-                  //  );
+                   debug(
+                       &self,
+                       &format!("answer: {}\t{}", answer, self.question_commit),
+                   );
 
                     if answer.eq("Bad") {
                         self.bad = self.question_commit.clone();
@@ -205,18 +218,19 @@ impl Handler for Client {
 
                     if self.parents.len() == 1 {
                         debug(&self, &format!("solution: {:?}", self.parents.keys()));
-                        send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
+                        send_solution(&self.out, self.parents_master_map_rev.get(self.parents.keys().last().unwrap()).unwrap().to_owned());
                     } else {
                         self.questions += 1;
                         self.question_commit = get_next_guess(&self.bad, &self.parents).unwrap();
 
-        //                debug(
-          //                  &self,
-            //                &format!("question {} {}", self.questions, self.question_commit),
-              //          );
-                        send_question(&self.out, self.question_commit.to_string());
+                       debug(
+                           &self,
+                           &format!("question {} {}", self.questions, self.question_commit),
+                       );
+                        send_question(&self.out, self.parents_master_map_rev.get(&self.question_commit).unwrap().to_owned());
                     }
                 }
+
             } else {
                 println!("uknown json {:?}", msg)
             }
@@ -243,13 +257,15 @@ pub fn run(address: String) {
     connect(address, |out| Client {
         out: out,
         questions: 0,
-        bad: "".to_string(),
+        bad: 0,
         name: "".to_string(),
         instance_count: 0,
-        question_commit: "".to_string(),
+        question_commit: 0,
         parents: HashMap::new(),
         global_question_count: 0,
         parents_master: HashMap::new(),
+        parents_master_map: HashMap::new(),
+        parents_master_map_rev: HashMap::new(),
     })
     .unwrap();
 }
