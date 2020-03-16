@@ -6,10 +6,7 @@ use rand::distributions::{IndependentSample, Range};
 
 pub fn remove_unecessary_good_commits(good: &String, parents: &mut HashMap<String, Vec<String>>) {
     let mut queue: VecDeque<String> = VecDeque::new();
-    let temp: &Vec<String> = parents.get(good).unwrap();
-    for i in 0..temp.len() {
-        queue.push_back(temp.get(i).unwrap().to_owned());
-    }
+    queue.push_back(good.to_owned());
     while !queue.is_empty() {
         let commit = queue.pop_front().unwrap();
         if let Some(cats) = parents.get(&commit) {
@@ -22,23 +19,14 @@ pub fn remove_unecessary_good_commits(good: &String, parents: &mut HashMap<Strin
     }
     // this is necessary for binary search but won't work well
     // for the "proper" way of counting
-    parents.remove_entry(good);
+    // parents.remove_entry(good);
 }
 
 pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>) {
     let mut queue: VecDeque<String> = VecDeque::new();
-    let parents_of_bad: &Vec<String> = parents.get(bad).unwrap();
     let mut results: HashSet<String> = HashSet::new();
     results.insert(bad.to_string());
-    for i in 0..parents_of_bad.len() {
-        let temp = parents_of_bad.get(i).unwrap();
-
-        if !results.contains(temp) && parents.contains_key(temp) {
-            queue.push_back(temp.to_owned());
-            results.insert(temp.to_owned());
-        }
-
-    }
+    queue.push_back(bad.to_owned());
     while !queue.is_empty() {
         if let Some(cats) = parents.get(&queue.pop_front().unwrap()) {
             for i in 0..cats.len() {
@@ -80,19 +68,16 @@ pub fn get_next_guess(bad: &String, parents: &HashMap<String, Vec<String>>) -> O
             queue.push_back(temp.to_owned());
             results.insert(temp.to_owned());
             count += 1;
-    
             if count >= half_way {
                 return Some(temp.to_string());
             }
         }
-        
     }
     while !queue.is_empty() {
         if let Some(cats) = parents.get(&queue.pop_front().unwrap()) {
             for i in 0..cats.len() {
                 let temp = cats.get(i).unwrap();
                 if !results.contains(temp) && parents.contains_key(temp) {
-
                     queue.push_back(temp.to_owned());
                     results.insert(temp.to_owned());
                     if count >= half_way {
@@ -106,13 +91,168 @@ pub fn get_next_guess(bad: &String, parents: &HashMap<String, Vec<String>>) -> O
     return None;
 }
 
+fn create_children(
+    bad: &String,
+    parents: &HashMap<String, Vec<String>>,
+) -> HashMap<String, Vec<String>> {
+    let mut children: HashMap<String, Vec<String>> = HashMap::new();
+
+    let mut queue: VecDeque<String> = VecDeque::new();
+    let mut results: HashSet<String> = HashSet::new();
+    results.insert(bad.to_string());
+    children.insert(bad.to_string(), Vec::new());
+    queue.push_back(bad.to_string());
+    while !queue.is_empty() {
+        let c = &queue.pop_front().unwrap();
+        if let Some(cats) = parents.get(c) {
+            for i in 0..cats.len() {
+                let temp = cats.get(i).unwrap();
+                if !results.contains(temp) && parents.contains_key(temp) {
+                    queue.push_back(temp.to_owned());
+                    results.insert(temp.to_owned());
+                }
+                if children.contains_key(temp) {
+                    children.get_mut(temp).unwrap().push(c.to_owned());
+                } else {
+                    children.insert(temp.to_owned(), vec![c.to_owned()]);
+                }
+            }
+        }
+    }
+
+    return children;
+}
+
+pub fn get_next_guess_algo(bad: &String, parents: &HashMap<String, Vec<String>>) -> Option<String> {
+    let N : i64= parents.len() as i64;
+    let half_way = (N as f64 / 2 as f64).ceil() as i64;
+
+    let children = create_children(bad, parents); // currently creates a copy than referencing it as such
+
+    let mut score: HashMap<String, i64> = HashMap::new();
+
+    let mut queue: VecDeque<String> = VecDeque::new();
+    let mut results: HashSet<String> = HashSet::new();
+
+    results.insert(bad.to_string());
+    for (commit, values) in parents {
+        parents.keys().set
+        
+        let mut count : i64= 0;
+
+        for v in values{
+            if parents.contains_key(v){
+                count += 1;
+            }
+        }   
+        if count == 0 {
+            queue.push_back(commit.to_owned());
+            score.insert(commit.to_owned(), 1);
+        }
+    }
+    if queue.is_empty(){
+        println!("oh no!");
+        return None
+    }
+    while !queue.is_empty() {
+        let c = &queue.pop_front().unwrap();
+        if let Some(cats) = children.get(c) {
+            for i in 0..cats.len() {
+                let temp = cats.get(i).unwrap();
+                if !results.contains(temp) && children.contains_key(temp) {
+                    queue.push_back(temp.to_owned());
+                    results.insert(temp.to_owned());
+                }
+                if score.contains_key(temp) {
+                    // println!("score exists: {} {:?}", temp, score.get(temp));
+                    *score.get_mut(temp).unwrap() += 1;
+                } else {
+                    // println!("score doesn't: {} previous: {:?}", temp, score.get(c));
+                    score.insert(temp.to_owned(), score.get(c).unwrap()+1);
+                }
+            }
+            
+        }
+    }
+
+    // println!("children: {:?}", children);
+    // println!("len: {}", score.len());
+     
+    let mut min : i64 = 0;
+    let mut min_commit = "".to_string();
+
+    for (commit, points) in score {
+        let a = &(N - points);
+        let p = a.min(&points);
+        // println!("{} {} {}",commit, p, half_way);
+        if p >= &half_way{
+            return Some(commit);
+        }
+        if p >= &min{
+            min = p.to_owned();
+            min_commit = commit;
+        }
+    }
+    // println!("min {} {}", min_commit, min);
+    if min == 0{
+        return None;
+    }
+    return Some(min_commit);
+}
+
+
+#[cfg(test)]
+mod children_creation {
+    use super::*;
+    use crate::json_types::*;
+
+    fn parse_json(prob: JsonProblemDefinition, start: &str) -> Vec<String> {
+        let mut commits = HashMap::new();
+        for commit in prob.dag {
+            commits.insert(commit.commit, commit.parents);
+        }
+
+        let children = create_children(&start.to_string(), &commits);
+
+        for v in children.keys() {
+            println!("{} -> {:?}", v, children.get(v));
+        }
+        println!("-------------------------");
+        println!("speedy: {:?}", get_next_guess_algo(&start.to_string(), &commits));
+
+
+        return vec!["".to_string()];
+    }
+
+    fn helper(data: &str, instance: &str) -> Vec<String> {
+        let problem = serde_json::from_str::<JsonMessageProblem>(data).unwrap();
+        let mut solution = parse_json(problem.Repo, instance);
+
+        return solution;
+    }
+
+    #[test]
+    fn test_children() {
+        // a >-- b --> c --> d
+        // v     |
+        // |     ^
+        // \---> bb
+        let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a","bb"]],["bb",["a"]],["c",["b"]],["d",["c"]]]}}"#;
+        // let data = r#"{"Repo":{"name":"tiny-diamonds","instance_count":10,"dag":[["a",[]],["b",["a"]],["c",["a"]],["d",["b","c"]],["e",["d"]],["f",["d"]],["g",["e","f"]],["h",["g"]],["i",["g"]],["j",["h","i"]],["k",["j"]],["l",["j"]],["m",["k","l"]],["n",["m"]],["o",["m"]],["p",["n","o"]],["q",["p"]],["r",["p"]],["s",["q","r"]],["t",["s"]],["u",["s"]],["v",["t","u"]],["w",["v"]],["x",["v"]],["y",["w","x"]],["z",["y"]]]}}"#;
+
+        // let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["c",["b"]],["d",["c","e"]],["e",["f"]],["f",[]]]}}"#;
+        // let data = r#"{"Repo":{"name":"pb0","instance_count":3,"dag":[["a",[]],["b",["a"]],["c",["b"]]]}}"#;
+        let solution = helper(data, "d");
+    }
+}
+
 #[cfg(test)]
 mod removal_raw {
     use super::*;
 
     #[test]
-    fn test_bad_removal()  {
-        let parents : &mut HashMap<String, Vec<String>> = &mut HashMap::new();
+    fn test_bad_removal() {
+        let parents: &mut HashMap<String, Vec<String>> = &mut HashMap::new();
         parents.insert("a".to_string(), vec!["b".to_string(), "c".to_string()]);
         parents.insert("b".to_string(), vec!["d".to_string(), "e".to_string()]);
         remove_from_bad(&"b".to_string(), parents);
@@ -123,10 +263,7 @@ mod removal_raw {
         values.sort();
         assert_eq!(values, vec!["b"]);
     }
-
-
 }
-
 
 #[cfg(test)]
 mod removal {
@@ -288,7 +425,6 @@ mod removal {
         Ok(())
     }
 
-
     /// this dag is so nested it is a pointless test
     #[ignore]
     #[test]
@@ -310,7 +446,7 @@ mod removal {
         //   /  \
         //  a    d
         //   \ c /
-        //     
+        //
         let data = r#"{"Repo":{"name":"pb0","instance_count":7,"dag":[["a",[]],["b",["a"]],["c",["a"]],["d",["c", "b"]]]}}"#;
         let instance = r#"{"Instance":{"good":"a","bad":"d"}}"#;
         let solution = helper(data, instance);
@@ -334,7 +470,6 @@ mod counting {
         }
         get_next_guess(&bad, &commits)
     }
-    
     #[test]
     fn test_only_two() -> Result<(), serde_json::Error> {
         // b <-- c (bad)

@@ -51,7 +51,7 @@ mod integeration {
     #[test]
     fn single_instance() -> Result<(), serde_json::Error> {
         // a (good) --> b --> c
-        //                     
+        //                     \
         //                      d (bad)
         //                      /
         //               f --> e

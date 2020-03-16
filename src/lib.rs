@@ -167,9 +167,9 @@ impl Handler for Client {
                     debug(&self, &format!("solution: {:?}", self.parents.keys()));
                     send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                 } else {
-                    self.question_commit = get_next_guess(&self.bad, &self.parents).unwrap();
+                    self.question_commit = get_next_guess_algo(&self.bad, &self.parents).unwrap();
                     debug(
-                        &self,
+                        &self,  
                         &format!("question {} {}", self.questions, self.question_commit),
                     );
                     send_question(&self.out, self.question_commit.to_string());
@@ -190,11 +190,13 @@ impl Handler for Client {
                     );
 
                     if answer.eq("Bad") {
+                        debug(&self, "removing based on bad commit");
                         self.bad = self.question_commit.clone();
                         pretty_print(&self.parents, &self.question_commit, false);
                         remove_from_bad(&self.question_commit, &mut self.parents);
                         pretty_print(&self.parents, &self.bad, false);
                     } else {
+                        debug(&self, "removing based on good commit");
                         pretty_print(&self.parents, &self.question_commit, true);
                         remove_unecessary_good_commits(&self.question_commit, &mut self.parents);
                         pretty_print(&self.parents, &self.bad, false);
@@ -205,7 +207,7 @@ impl Handler for Client {
                         send_solution(&self.out, self.parents.keys().last().unwrap().to_owned());
                     } else {
                         self.questions += 1;
-                        self.question_commit = get_next_guess(&self.bad, &self.parents).unwrap();
+                        self.question_commit = get_next_guess_algo(&self.bad, &self.parents).unwrap();
 
                         debug(
                             &self,

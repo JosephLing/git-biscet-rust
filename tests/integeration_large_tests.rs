@@ -137,7 +137,7 @@ mod bigJsonExamples {
     // of the size of 249 things
     // that means they are probably the same question
     #[test]
-    #[ignore]
+    // #[ignore]
     fn test_test() -> Result<()> {
         // 249
         helper_loader(&"test_test".to_string(), "36".to_string());
