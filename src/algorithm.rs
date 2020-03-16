@@ -2,12 +2,11 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 
+use rand::Rng;
+
 pub fn remove_unecessary_good_commits(good: &String, parents: &mut HashMap<String, Vec<String>>) {
     let mut queue: VecDeque<String> = VecDeque::new();
-    let temp: &Vec<String> = parents.get(good).unwrap();
-    for i in 0..temp.len() {
-        queue.push_back(temp.get(i).unwrap().to_owned());
-    }
+    queue.push_back(good.to_owned());
     while !queue.is_empty() {
         let commit = queue.pop_front().unwrap();
         if let Some(cats) = parents.get(&commit) {
@@ -25,18 +24,10 @@ pub fn remove_unecessary_good_commits(good: &String, parents: &mut HashMap<Strin
 
 pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>) {
     let mut queue: VecDeque<String> = VecDeque::new();
-    let parents_of_bad: &Vec<String> = parents.get(bad).unwrap();
     let mut results: HashSet<String> = HashSet::new();
     results.insert(bad.to_string());
-    for i in 0..parents_of_bad.len() {
-        let temp = parents_of_bad.get(i).unwrap();
-
-        if !results.contains(temp) && parents.contains_key(temp) {
-            queue.push_back(temp.to_owned());
-            results.insert(temp.to_owned());
-        }
-
-    }
+    queue.push_back(bad.to_owned());
+    
     while !queue.is_empty() {
         if let Some(cats) = parents.get(&queue.pop_front().unwrap()) {
             for i in 0..cats.len() {
@@ -65,6 +56,21 @@ pub fn remove_from_bad(bad: &String, parents: &mut HashMap<String, Vec<String>>)
 /// actually be fully half way down the tree.
 pub fn get_next_guess(bad: &String, parents: &HashMap<String, Vec<String>>) -> Option<String> {
     // println!("get_next_guess {} {}", bad, parents.len());
+    // if parents.len() > 100000{
+    //     let mut rng = rand::thread_rng();
+    //     let v = rng.gen_range(0, parents.len());
+    //     let mut c = 0;
+    //     for k in parents.keys(){
+    //         if c >= v && k != bad{
+    //             return Some(k.to_string());
+    //         }
+    //         c += 1;
+    //     }
+    //     // parents.
+        
+    //     // rng.gen_range(0, 10)
+    //     return None;
+    // }
     let half_way = (parents.len() as f64 / 2 as f64).ceil() as usize;
     let mut count = 1;
     let mut queue: VecDeque<String> = VecDeque::new();
