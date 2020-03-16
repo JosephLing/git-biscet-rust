@@ -2,8 +2,6 @@ use std::collections::HashMap;
 use std::collections::HashSet;
 use std::collections::VecDeque;
 
-use rand::distributions::{IndependentSample, Range};
-
 pub fn remove_unecessary_good_commits(good: &String, parents: &mut HashMap<String, Vec<String>>) {
     let mut queue: VecDeque<String> = VecDeque::new();
     let temp: &Vec<String> = parents.get(good).unwrap();

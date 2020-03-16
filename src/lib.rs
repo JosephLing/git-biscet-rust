@@ -7,32 +7,13 @@ pub use crate::json_types::*;
 use serde_json::Value;
 
 use std::collections::HashMap;
-use std::io;
+// use std::io;
 
-use std::fs::File;
-use std::io::prelude::*;
+// use std::fs::File;
+// use std::io::prelude::*;
 
 use ws::Result as ResultWS;
 use ws::{connect, CloseCode, Handler, Handshake, Message, Sender};
-
-// {
-//     // let mut debug: String = "digraph G {\n".to_string();
-//     // debug += &format!("node [shape = doublecircle, color=blue]; {}\n", instance.bad);
-//     // debug += &format!("node [shape = doublecircle, color=green]; {}\n", instance.good);
-
-//     // debug += "node [shape = circle, color=black];\n";
-//     // for node in self.parents.keys() {
-//     //     for parent in self.parents.get(node).unwrap() {
-//     //         if self.parents.contains_key(parent) {
-//     //             debug = debug + &format!("{} -> {}\n", node, parent);
-//     //         }
-//     //     }
-//     // }
-//     // debug = debug + &"}".to_string();
-//     // let mut file = File::create("main.dot").unwrap();
-//     // file.set_len(0).unwrap();
-//     // file.write_all(debug.as_bytes()).unwrap();
-// }
 
 
 // note: look into a better way potentailly to do the header...
@@ -51,6 +32,11 @@ fn send_solution(out: &Sender, msg: String) {
     _send_data(out, "Solution", msg)
 }
 
+
+/// outputs the parents nicely to the console
+/// as well as outputing a .dot diagram of the repository named after commit that
+/// is currently being asked about
+/// note: currently all commented out as not needing to debug things atm
 fn pretty_print(parents: &HashMap<String, Vec<String>>, name: &String, good: bool) {
         // if parents.len() < 10 {
         //     println!("parents: {:?}", parents);
@@ -99,6 +85,7 @@ struct Client {
     parents_master: HashMap<String, Vec<String>>,
 }
 
+/// [client][big-linux][1][100000][bad a][qc 2] msg
 fn debug(a: &Client, msg: &str) {
     if true{
         println!(
@@ -119,6 +106,9 @@ impl Handler for Client {
         self.out
             .send(serde_json::json!({"User":["jl653", "f6b598a8"]}).to_string())
     }
+    /// listener to handle each message
+    /// we don't store any state we just run based on the next message we get back from the server
+    /// assumign that everything will be in the correct order
     fn on_message(&mut self, msg: Message) -> ResultWS<()> {
         if let Ok(data) = serde_json::from_str::<Value>(msg.as_text().unwrap()) {
             if data["Repo"] != Value::Null {
@@ -176,7 +166,6 @@ impl Handler for Client {
                 }
             } else if self.questions >= 29 {
                 debug(self, "GIVING UP");
-                //TODO: check what the limits are here!? and to see if we can submit a solution maybe??
                 self.out.send(serde_json::json!("GiveUp").to_string());
             } else if data["Answer"] != Value::Null {
                 if self.parents.len() == 1 {
@@ -236,6 +225,7 @@ impl Handler for Client {
     }
 }
 
+/// run client on given address and it will send a login message to start the thing
 pub fn run(address: String) {
     connect(address, |out| Client {
         out: out,
