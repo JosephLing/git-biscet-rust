@@ -4,7 +4,7 @@ https://rgrig.github.io/plad/homework.html
 ## Solution:
 - The core the of the algorithm can be found in `algorithm.rs` which contains the good and bad commit removal. Along with the get_next_commit function which is used to pick which commit to ask a question about.
 - Generally it is pretty fast general case solution although not optimised too well for really large repositories. Yet has only given up on 165 to 199 instances throughout the 10,000 instances which is pretty good with an average of 8-9 questions being asked.
-  - It normally runs in just over 3hrs but the string to integer suggestion you made Radu on the forum sped it up by around 30 minutes on the submission. It is in `integer-rewrite` branch but some of the unit tests failed as they were expecting strings and I had other things to do than rewrite the unit tests.
+  - It normally runs in just over 3hrs but the string to integer suggestion you made Radu on the forum sped it up by around 30 minutes on the submission. It is in `integer-rewrite` branch but some of the unit tests failed as they were expecting strings and I had other things to do than rewrite the unit tests (git tree is to large to zip up as the test json files are in the commit history.... the irony).
   - I had given it a go and heard that randomly picking after a size of graph might work a bit better but without a more hueristic approach I wasn't able to get a better score doing that.
 
 ## Testing:
